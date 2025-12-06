@@ -3,6 +3,28 @@
 
 ## Installation
 
+### Setup Python
+1. Clone repository
+```sh
+git clone https://github.com/Tugas-Besar-Pemrograman-Aplikasi-Web/Pyramid-Backend.git
+```
+2. Masuk ke root repository
+```sh
+cd Pyramid-Backend/
+```
+3. Buat virtual env
+```sh
+python -m venv env
+```
+4. Source activate
+```sh
+source env/bin/activate
+```
+5. Install dependensi
+```sh
+pip install -r requirements.txt
+```
+
 ### Setup postgres:
 1. Buat database
 ```sh
