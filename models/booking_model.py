@@ -1,9 +1,6 @@
 import uuid
 from datetime import datetime
-from sqlalchemy import (
-    Column, String, DateTime, Date, Text, Integer, Numeric,
-    Boolean, ForeignKey, Enum
-)
+from sqlalchemy import (Column, String, DateTime, Date, Text, Integer, Numeric, Boolean, ForeignKey, Enum)
 from sqlalchemy.dialects.postgresql import UUID
 from sqlalchemy.orm import relationship
 
@@ -15,21 +12,17 @@ class Booking(Base):
     id = Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
     package_id = Column(UUID(as_uuid=True), ForeignKey('packages.id'),nullable=False, index=True)
     tourist_id = Column(UUID(as_uuid=True), ForeignKey('users.id'),nullable=False, index=True)
-
     travel_date = Column(Date, nullable=False, index=True)
     travelers_count = Column(Integer, nullable=False)
     total_price = Column(Numeric(10, 2), nullable=False)
-
     status = Column(
         Enum('pending', 'confirmed', 'cancelled', 'completed', name='booking_status'),
         nullable=False,
         default='pending',
         index=True
     )
-
     created_at = Column(DateTime, default=datetime.utcnow, index=True)
     completed_at = Column(DateTime, nullable=True)
-
     has_reviewed = Column(Boolean, default=False)
 
     # Payment fields
