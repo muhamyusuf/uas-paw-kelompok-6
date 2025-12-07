@@ -1,19 +1,16 @@
+import hupper
 from waitress import serve
 from pyramid.config import Configurator
-import hupper
 
 
 def main():
     with Configurator() as config:
         # route
-        config.add_route("home", "/api")
-        config.add_route("chatai", "/api/chatai")
-
-        # auth
+        ## auth
         config.add_route("register", "/api/auth/register")
         config.add_route("login", "/api/auth/login")
+        config.add_route("me", "/api/auth/me")
 
-        # config.include("views")
         config.scan("views")
         app = config.make_wsgi_app()
 
@@ -23,5 +20,4 @@ def main():
 
 if __name__ == "__main__":
     hupper.start_reloader("main.main")
-
     main()

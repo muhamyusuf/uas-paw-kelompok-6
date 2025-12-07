@@ -1,11 +1,12 @@
+import jwt
+import datetime
+import bcrypt
 from pyramid.response import Response
 from pyramid.view import view_config
 from pydantic import BaseModel, ValidationError
 from sqlalchemy.exc import IntegrityError
-import bcrypt
 from db import Session
 from enum import Enum
-import jwt
 from models.user_model import User
 
 
@@ -52,7 +53,13 @@ def register(request):
 
     # making jwt token
     encoded = jwt.encode(
-        {"name": req_data.name, "email": req_data.email, "role": req_data.role},
+        {
+            "name": req_data.name,
+            "email": req_data.email,
+            "role": req_data.role,
+            "exp": datetime.datetime.now(datetime.timezone.utc)
+            + datetime.timedelta(minutes=30),
+        },
         "secret",
         algorithm="HS256",
     )

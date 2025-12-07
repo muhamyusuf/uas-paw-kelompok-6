@@ -1,11 +1,13 @@
+import bcrypt
+import jwt
+import datetime
 from pyramid.response import Response
 from pyramid.view import view_config
 from pydantic import BaseModel, ValidationError
 from sqlalchemy import select
-import bcrypt
+from sqlalchemy.exc import NoResultFound
 from db import Session
 from enum import Enum
-import jwt
 from models.user_model import User
 
 
@@ -32,8 +34,11 @@ def login(request):
         stmt = select(User).where(User.email == req_data.email)
         try:
             result = session.execute(stmt).scalars().one()
-        except:
-            return Response(json_body={"error"}, status=409)
+        except NoResultFound:
+            return Response(json_body={"message": "User tidak ditemukan"}, status=401)
+        except Exception as e:
+            print(e)
+            return Response(json_body={"error": "Internal Server Error"}, status=500)
 
     # check the password with the hash in the db
     bytes = req_data.password.encode("utf-8")
@@ -42,7 +47,13 @@ def login(request):
     if is_valid == True:
         # making jwt token
         encoded = jwt.encode(
-            {"name": result.name, "email": result.email, "role": result.role},
+            {
+                "name": result.name,
+                "email": result.email,
+                "role": result.role,
+                "exp": datetime.datetime.now(datetime.timezone.utc)
+                + datetime.timedelta(minutes=30),
+            },
             "secret",
             algorithm="HS256",
         )
