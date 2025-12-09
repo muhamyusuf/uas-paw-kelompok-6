@@ -23,7 +23,7 @@ def me(request):
         )
 
     try:
-        payload = jwt.decode(token, "secret", algorithms=["HS256"])
+        payload = jwt.decode(token, "secret", algorithms=["HS256"], require=["exp", "iat"])
     except jwt.ExpiredSignatureError:
         return Response(json_body={"error": "Token expired"}, status=401)
     except:

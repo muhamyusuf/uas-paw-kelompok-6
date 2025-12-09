@@ -11,6 +11,9 @@ def main():
         config.add_route("login", "/api/auth/login")
         config.add_route("me", "/api/auth/me")
 
+        ## packages
+        config.add_route("packages", "/api/packages/packages")
+
         config.scan("views")
         app = config.make_wsgi_app()
 

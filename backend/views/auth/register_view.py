@@ -53,12 +53,13 @@ def register(request):
 
     # making jwt token
     encoded = jwt.encode(
-        {
-            "name": req_data.name,
+        {   
+            "sub": str(user_id),
             "email": req_data.email,
             "role": req_data.role,
             "exp": datetime.datetime.now(datetime.timezone.utc)
             + datetime.timedelta(minutes=30),
+            "iat":datetime.datetime.now(datetime.timezone.utc),
         },
         "secret",
         algorithm="HS256",
