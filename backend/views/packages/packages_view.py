@@ -1,4 +1,3 @@
-import jwt
 from pydantic import BaseModel, ValidationError, Field
 from pyramid.response import Response
 from pyramid.view import view_config
@@ -7,6 +6,7 @@ from sqlalchemy import select
 from db import Session
 from models.user_model import User
 from models.package_model import Package
+from helpers.jwt_validate_helper import jwt_validate
 
 class FromRequest(BaseModel):
     destinationId: str
@@ -19,35 +19,16 @@ class FromRequest(BaseModel):
     images: list[str]
 
 @view_config(route_name="packages", request_method="POST", renderer="json")
+@jwt_validate
 def packages(request):
     # request validation
     try:
         req_data = FromRequest(**request.json_body)
     except ValidationError as err:
         return Response(json_body={"error": str(err.errors())}, status=400)
-
-    # get header
-    auth_header = request.headers.get("Authorization")
-    if not auth_header:
-        return Response(json_body={"error": "Missing Token"}, status=401)
-    try:
-        token_type, token = auth_header.split(" ", 1)
-        if token_type != "Bearer":
-            raise ValueError("Invalid token type")
-    except ValueError:
-        return Response(
-            json_body={"error": "Invalid Authorization header format"}, status=401
-        )
-    # validate jwt
-    try:
-        payload = jwt.decode(token, "secret", algorithms=["HS256"], require=["exp", "iat"])
-    except jwt.ExpiredSignatureError:
-        return Response(json_body={"error": "Token expired"}, status=401)
-    except:
-        return Response(json_body={"error": "Invalid token"}, status=401)
     # check agentid
     with Session() as session:
-        stmt = select(User).where(User.id == payload["sub"])
+        stmt = select(User).where(User.id == request.payload["sub"])
         try:
             result = session.execute(stmt).scalars().one()
             if not result:
@@ -61,7 +42,7 @@ def packages(request):
     # push new package row to db
     with Session() as session:
         new_package = Package(
-            agent_id=payload["sub"],
+            agent_id=request.payload["sub"],
             destination_id=req_data.destinationId,
             name=req_data.name,
             duration=req_data.duration,
