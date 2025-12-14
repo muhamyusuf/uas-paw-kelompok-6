@@ -115,6 +115,155 @@ alembic revision --autogenerate -m "initiate"
 python main.py
 ```
 
+---
+
+## 🐳 Docker Setup
+
+### Requirements:
+- Docker
+- Docker Compose
+
+### Quick Start dengan Docker Compose
+
+1. **Masuk ke folder backend**
+
+```sh
+cd backend
+```
+
+2. **Build dan jalankan containers**
+
+```sh
+docker-compose up --build
+```
+
+Perintah ini akan:
+- Build Docker image untuk Pyramid backend
+- Create PostgreSQL 15 container
+- Auto-initialize database dengan `init-db.sql`
+- Auto-run alembic migrations
+- Start Pyramid server di port 6543
+
+3. **Cek apakah service berjalan**
+
+```bash
+docker-compose ps
+```
+
+Output yang diharapkan:
+```
+NAME              STATUS
+uas-pengweb-db    Up (healthy)
+uas-pyramid-backend  Up
+```
+
+4. **Test API**
+
+```bash
+curl http://localhost:6543/api/auth/me
+```
+
+### Docker Compose Services
+
+#### PostgreSQL Service (uas-pengweb-db)
+- Image: `postgres:15-alpine`
+- Port: `5432`
+- Database: `uas_pengweb`
+- Users: `alembic_user`, `app_prod_user` (auto-created)
+- Initialization: `init-db.sql`
+- Storage: `postgres_data` volume (persistent)
+
+#### Pyramid Backend Service (uas-pyramid-backend)
+- Image: Built from `Dockerfile`
+- Port: `6543`
+- Environment: `DATABASE_URL=postgresql+psycopg2://app_prod_user:12345@postgres:5432/uas_pengweb`
+- Startup: Runs `alembic upgrade head && python main.py`
+- Volumes:
+  - `./storage:/app/storage` - Application storage (persistent)
+  - `.:/app` - Code mount for development
+
+### Dockerfile Details
+
+**Base Image:** `python:3.11-slim`
+
+**Installed Dependencies:**
+- `postgresql-client` - For Alembic migrations to PostgreSQL
+- `libzbar0` - For QRIS code scanning
+
+**Exposed Port:** `6543` (Pyramid default)
+
+**Health Check:** Pings `/api/auth/me` every 30 seconds
+
+### Useful Docker Commands
+
+**View logs**
+
+```bash
+docker-compose logs pyramid-backend
+docker-compose logs postgres
+docker-compose logs -f  # Follow logs
+```
+
+**Stop containers**
+
+```bash
+docker-compose down
+```
+
+**Stop and remove all data (volumes)**
+
+```bash
+docker-compose down -v
+```
+
+**Rebuild image**
+
+```bash
+docker-compose up --build
+```
+
+**Access PostgreSQL inside container**
+
+```bash
+docker-compose exec postgres psql -U app_prod_user -d uas_pengweb
+```
+
+**Access Pyramid container shell**
+
+```bash
+docker-compose exec pyramid-backend bash
+```
+
+**Run Alembic migration inside container**
+
+```bash
+docker-compose exec pyramid-backend alembic upgrade head
+```
+
+### Troubleshooting
+
+**Issue: "connection refused"**
+- Pastikan PostgreSQL service sudah healthy: `docker-compose ps`
+- Tunggu healthcheck pass (5-10 detik)
+
+**Issue: "permission denied for schema public"**
+- Database users belum ter-setup
+- Jalankan `docker-compose down -v` dan rebuild: `docker-compose up --build`
+
+**Issue: Alembic migration error**
+- Check logs: `docker-compose logs pyramid-backend`
+- Ensure `DATABASE_URL` environment variable format benar
+- Database user harus punya CREATE privilege pada public schema
+
+**Issue: Port 6543 already in use**
+- Change port di `docker-compose.yml`:
+  ```yaml
+  ports:
+    - "8000:6543"  # Maps localhost:8000 to container:6543
+  ```
+
+---
+
 # Dokumentasi API
 
 > Ini adalah dokumentasi utama dari semua api yang tersedia di backend python pyramid tugas besar Pemrograman Aplikasi Web
@@ -203,12 +352,16 @@ Authorization: Bearer {token}
 ---
 
 ## Destinations
+
 ### GET /api/destinations
+
 **Get all destinations**
 **Query Parameters:**
+
 - `country` (optional): Filter by country
 - `search` (optional): Search by name or description
-**Response (200 OK):**
+  **Response (200 OK):**
+
 ```json
 [
   {
@@ -220,10 +373,14 @@ Authorization: Bearer {token}
   }
 ]
 ```
+
 ---
+
 ### GET /api/destinations/:id
+
 **Get destination by ID**
 **Response (200 OK):**
+
 ```json
 {
   "id": "uuid-here",
@@ -233,6 +390,7 @@ Authorization: Bearer {token}
   "country": "Maldives"
 }
 ```
+
 ---
 
 ## Packages
@@ -1211,8 +1369,10 @@ curl -X POST "http://localhost:6543/api/payment/generate" \
 ---
 
 ### GET /api/packages/{id}
+
 **Get package by ID with full details**
 **Response (200 OK):**
+
 ```json
 {
   "id": "uuid-here",
@@ -1228,18 +1388,24 @@ curl -X POST "http://localhost:6543/api/payment/generate" \
   "rating": 4.8,
   "reviewsCount": 245,
   "destinationName": "Maldives",
-  "country": "Indonesia",
+  "country": "Indonesia"
 }
 ```
+
 ---
+
 ### PUT /api/packages/:id
+
 **Update package (Agent only, own packages)**
 **Headers:**
+
 ```
 Authorization: Bearer {token}
 Content-Type: application/json
 ```
+
 **Request Body:** (all fields optional)
+
 ```json
 {
   "name": "Updated Package Name",
@@ -1251,7 +1417,9 @@ Content-Type: application/json
   "images": ["url1", "url2", "url3"]
 }
 ```
+
 **Response (200 OK):**
+
 ```json
 {
   "id": "uuid-here",
@@ -1267,21 +1435,26 @@ Content-Type: application/json
   "rating": 4.8,
   "reviewsCount": 245,
   "destinationName": "Maldives",
-  "country": "Indonesia",
+  "country": "Indonesia"
 }
 ```
+
 ### DELETE /api/packages/:id
+
 **Delete package (Agent only, own packages, no bookings)**
 **Headers:**
+
 ```
 Authorization: Bearer {token}
 ```
-**Response (200 OK)**
----
+
+## **Response (200 OK)**
 
 ### GET /api/packages/agent/:agentId
+
 **Get all packages by agent**
 **Response (200 OK):**
+
 ```json
 [
   {
@@ -1302,4 +1475,5 @@ Authorization: Bearer {token}
   }
 ]
 ```
+
 ---
