@@ -81,6 +81,8 @@ def main():
         # Static file serving untuk QRIS storage dan payment proofs
         config.add_static_view(name='qris', path='storage/qris', cache_max_age=3600)
         config.add_static_view(name='payment_proofs', path='storage/payment_proofs', cache_max_age=3600)
+        config.add_static_view(name='destinations', path='storage/destinations', cache_max_age=3600)
+        config.add_static_view(name='packages', path='storage/packages', cache_max_age=3600)
 
         config.scan("views")
         app = config.make_wsgi_app()
