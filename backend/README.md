@@ -150,7 +150,37 @@ Authorization: Bearer {token}
 }
 ```
 ---
-
+## Packages
+### GET /api/packages
+**Get all packages**
+**Query Parameters:**
+- `destination` (optional): Filter by destination ID
+- `minPrice` (optional): Minimum price filter
+- `maxPrice` (optional): Maximum price filter
+- `search` (optional): Search by package name
+- `sort` (optional): `price` or `duration`
+- `page` (optional, default: 1): Page number
+- `limit` (optional, default: 9): Items per page
+**Response (200 OK):**
+```json
+{
+  "id": "uuid-here",
+  "agentId": "uuid-here",
+  "destinationId": "uuid-here",
+  "name": "Maldives Paradise Retreat",
+  "duration": 7,
+  "price": 3500.0,
+  "itinerary": "Day 1-2: Arrival...",
+  "maxTravelers": 4,
+  "contactPhone": "+62 812-3456-7890",
+  "images": ["url1", "url2"],
+  "rating": 4.8,
+  "reviewsCount": 245,
+  "destinationName": Bali,
+  "country": Indonesia
+}
+```
+---
 ## Packages
 ### POST /api/packages
 **Create new package (agent only)**
@@ -167,7 +197,7 @@ Content-Type: application/json
   "duration": 5, //number
   "price": 2500.0,  //number
   "itinerary": "Day 1: Arrival...", //string
-  "maxTravelers": 8, //string
+  "maxTravelers": 8, //number
   "contactPhone": "+62 812-3456-7890", //string
   "images": ["url1", "url2"] //array of string
 }
