@@ -10,6 +10,7 @@ import {
   DollarSign,
   Clock,
   Package as PackageIcon,
+  Loader2,
 } from "lucide-react";
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -17,20 +18,29 @@ import { Separator } from "@/components/ui/separator";
 import { PaymentUpload } from "@/components/payment-upload";
 import { useDestinationStore } from "@/store/destination-store";
 import { useBookingStore } from "@/store/booking-store";
+import * as bookingService from "@/services/booking.service";
+import * as packageService from "@/services/package.service";
+import * as destinationService from "@/services/destination.service";
+import * as paymentService from "@/services/payment.service";
 import { format } from "date-fns";
 import { useSEO } from "@/hooks/use-seo";
+import { toast } from "sonner";
+import type { Booking, Package, Destination } from "@/types";
 
 export default function BookingSuccessPage() {
   const navigate = useNavigate();
   const [searchParams] = useSearchParams();
-  const { packages, destinations } = useDestinationStore();
-  const { bookings, uploadPaymentProof } = useBookingStore();
+  const { setDestinations, setPackages } = useDestinationStore();
+  const { uploadPaymentProof } = useBookingStore();
   const [countdown, setCountdown] = useState(10);
+  const [isLoading, setIsLoading] = useState(true);
+  
+  // Local state for fetched data
+  const [booking, setBooking] = useState<Booking | null>(null);
+  const [pkg, setPkg] = useState<Package | null>(null);
+  const [destination, setDestination] = useState<Destination | null>(null);
 
   const bookingId = searchParams.get("bookingId");
-  const booking = bookings.find((b) => b.id === bookingId);
-  const pkg = booking ? packages.find((p) => p.id === booking.packageId) : null;
-  const destination = pkg ? destinations.find((d) => d.id === pkg.destinationId) : null;
 
   useSEO({
     title: "Booking Successful",
@@ -39,18 +49,64 @@ export default function BookingSuccessPage() {
     keywords: "booking confirmation, booking success, travel confirmed, reservation complete",
   });
 
-  const handlePaymentUpload = async (file: File) => {
-    if (!bookingId) return;
+  // Fetch booking data from API
+  useEffect(() => {
+    const fetchBookingData = async () => {
+      if (!bookingId) {
+        setIsLoading(false);
+        return;
+      }
 
-    // Simulate file upload (in production, upload to storage service)
-    return new Promise<void>((resolve) => {
-      setTimeout(() => {
-        // Create a mock URL (in production, this would be the actual uploaded file URL)
-        const mockUrl = URL.createObjectURL(file);
-        uploadPaymentProof(bookingId, mockUrl);
-        resolve();
-      }, 1500);
-    });
+      setIsLoading(true);
+      try {
+        // Fetch booking details
+        const bookingData = await bookingService.getBookingById(bookingId);
+        setBooking(bookingData);
+
+        // Fetch package details
+        const packageData = await packageService.getPackageById(bookingData.packageId);
+        setPkg(packageData);
+        setPackages([packageData]);
+
+        // Fetch destination details
+        const destinationsData = await destinationService.getAllDestinations();
+        setDestinations(destinationsData);
+        const dest = destinationsData.find((d) => d.id === packageData.destinationId);
+        setDestination(dest || null);
+      } catch (error) {
+        console.error("Failed to fetch booking data:", error);
+        toast.error("Failed to load booking details");
+      } finally {
+        setIsLoading(false);
+      }
+    };
+
+    fetchBookingData();
+  }, [bookingId, setDestinations, setPackages]);
+
+  const handlePaymentUpload = async (file: File) => {
+    if (!bookingId || !booking) return;
+
+    try {
+      // Call real API to upload payment proof
+      const result = await paymentService.uploadPaymentProof(bookingId, file);
+      
+      // Update local booking state
+      setBooking({
+        ...booking,
+        paymentProofUrl: result.paymentProofUrl,
+        paymentStatus: result.paymentStatus as Booking["paymentStatus"],
+      });
+
+      // Also update store
+      uploadPaymentProof(bookingId, file);
+      
+      toast.success("Payment proof uploaded successfully!");
+    } catch (error) {
+      console.error("Failed to upload payment proof:", error);
+      toast.error("Failed to upload payment proof. Please try again.");
+      throw error;
+    }
   };
 
   useEffect(() => {
@@ -67,6 +123,20 @@ export default function BookingSuccessPage() {
 
     return () => clearInterval(timer);
   }, []);
+
+  // Loading state
+  if (isLoading) {
+    return (
+      <div className="bg-muted flex min-h-screen items-center justify-center p-4">
+        <Card className="w-full max-w-md">
+          <CardContent className="flex flex-col items-center justify-center p-8">
+            <Loader2 className="h-8 w-8 animate-spin text-primary mb-4" />
+            <p className="text-muted-foreground">Loading booking details...</p>
+          </CardContent>
+        </Card>
+      </div>
+    );
+  }
 
   if (!booking || !pkg || !destination) {
     return (

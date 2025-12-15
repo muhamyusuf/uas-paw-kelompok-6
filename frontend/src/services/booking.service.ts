@@ -10,13 +10,13 @@ export interface CreateBookingRequest {
 
 export interface UpdateBookingStatusRequest {
   id: string;
-  status: "pending" | "confirmed" | "cancelled";
+  status: "pending" | "confirmed" | "cancelled" | "completed";
 }
 
-// Get all bookings (Admin/Agent)
+// Get all bookings (Admin/Agent) - Note: API returns {data: [...]}
 export const getAllBookings = async (): Promise<Booking[]> => {
-  const response = await apiClient.get<Booking[]>("/api/bookings");
-  return response.data;
+  const response = await apiClient.get<{ data: Booking[] }>("/api/bookings");
+  return response.data.data;
 };
 
 // Get booking by ID
@@ -53,27 +53,28 @@ export const createBooking = async (
   return response.data;
 };
 
-// Update booking status (Agent only)
+// Update booking status (Agent only) - uses PUT method
 export const updateBookingStatus = async (
   data: UpdateBookingStatusRequest
 ): Promise<Booking> => {
   const { id, status } = data;
-  const response = await apiClient.patch<Booking>(`/api/bookings/${id}`, {
+  const response = await apiClient.put<Booking>(`/api/bookings/${id}/status`, {
     status,
   });
   return response.data;
 };
 
-// Cancel booking (Tourist can cancel their own)
+// Cancel booking (Tourist can cancel their own) - uses PUT method
 export const cancelBooking = async (id: string): Promise<Booking> => {
-  const response = await apiClient.patch<Booking>(`/api/bookings/${id}`, {
+  const response = await apiClient.put<Booking>(`/api/bookings/${id}/status`, {
     status: "cancelled",
   });
   return response.data;
 };
 
-// Get booking statistics (Agent)
-export const getBookingStatistics = async (agentId: string) => {
-  const response = await apiClient.get(`/api/bookings/stats/${agentId}`);
+// Get pending payment bookings (Agent only)
+export const getPendingPaymentBookings = async (): Promise<Booking[]> => {
+  const response = await apiClient.get<Booking[]>("/api/bookings/payment/pending");
   return response.data;
 };
+

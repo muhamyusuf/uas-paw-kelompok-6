@@ -12,7 +12,7 @@ import uuid
 from pathlib import Path
 
 
-class FromRequest(BaseModel):
+class DestinationFilterRequest(BaseModel):
     country: Optional[str] = None
     name: Optional[str] = None
 
@@ -37,7 +37,7 @@ def serialization_data(destination):
 def destinations(request):
     # request validation
     try:
-        req_data = FromRequest(**request.params.mixed())
+        req_data = DestinationFilterRequest(**request.params.mixed())
     except ValidationError as err:
         return Response(json_body={"error": str(err.errors())}, status=400)
 
@@ -72,7 +72,7 @@ def destination_detail(request):
             result = session.execute(stmt).scalars().one()  # tampilkan 1 data
             return serialization_data(result)  # serialisasikan
         except NoResultFound:
-            return Response(json_body={"error": "Destination not founfd"}, status=404)
+            return Response(json_body={"error": "Destination not found"}, status=404)
         except Exception as e:
             return Response(json_body={"error": "Invalid ID or server error"}, status=400)
 

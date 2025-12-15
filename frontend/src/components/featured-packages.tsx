@@ -1,11 +1,15 @@
 "use client";
 
 import { useNavigate } from "react-router-dom";
-import { ChevronLeft, ChevronRight, Phone } from "lucide-react";
+import { ChevronLeft, ChevronRight, Phone, Heart } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { Carousel, CarouselContent, CarouselItem } from "@/components/ui/carousel";
 import { AspectRatio } from "@/components/ui/aspect-ratio";
+import { getImageUrl } from "@/lib/image-utils";
+import { useWishlistStore } from "@/store/wishlist-store";
+import { useAuthStore } from "@/store/auth-store";
+import { toast } from "sonner";
 import type { Package, Destination } from "@/types";
 
 interface PackageCardProps {
@@ -15,13 +19,33 @@ interface PackageCardProps {
 
 const PackageCard = ({ package: pkg, destination }: PackageCardProps) => {
   const navigate = useNavigate();
+  const { addToWishlist, removeFromWishlist, isInWishlist } = useWishlistStore();
+  const { isAuthenticated } = useAuthStore();
+
+  const handleToggleWishlist = (e: React.MouseEvent) => {
+    e.stopPropagation();
+    
+    if (!isAuthenticated) {
+      toast.error("Please sign in to add to wishlist");
+      navigate("/sign-in");
+      return;
+    }
+
+    if (isInWishlist(pkg.id)) {
+      removeFromWishlist(pkg.id);
+      toast.success("Removed from wishlist");
+    } else {
+      addToWishlist(pkg.id);
+      toast.success("Added to wishlist");
+    }
+  };
 
   return (
     <Card className="border-border overflow-hidden p-2 transition-shadow hover:shadow-lg">
       <div className="relative">
         <AspectRatio ratio={4 / 3}>
           <img
-            src={pkg.images[0]}
+            src={getImageUrl(pkg.images[0])}
             alt={pkg.name}
             className="h-full w-full rounded-lg object-cover"
           />
@@ -29,6 +53,17 @@ const PackageCard = ({ package: pkg, destination }: PackageCardProps) => {
         <div className="bg-background/90 absolute right-4 bottom-4 rounded-full px-4 py-2">
           <span className="text-foreground text-sm font-bold">${pkg.price}</span>
         </div>
+        {/* Wishlist Button */}
+        <Button
+          variant="outline"
+          size="icon"
+          className={`absolute top-4 right-4 h-8 w-8 rounded-full bg-background/90 hover:bg-background ${
+            isInWishlist(pkg.id) ? "border-red-500 text-red-500" : ""
+          }`}
+          onClick={handleToggleWishlist}
+        >
+          <Heart className={`h-4 w-4 ${isInWishlist(pkg.id) ? "fill-current" : ""}`} />
+        </Button>
       </div>
 
       <CardContent className="p-1">
@@ -52,10 +87,10 @@ const PackageCard = ({ package: pkg, destination }: PackageCardProps) => {
             <span className="text-muted-foreground">
               {pkg.duration} {pkg.duration === 1 ? "Day" : "Days"}
             </span>
-            {pkg.rating && (
+            {pkg.rating && pkg.reviewsCount && pkg.reviewsCount > 0 && (
               <div className="flex items-center gap-1">
                 <span className="text-foreground font-semibold">{pkg.rating}</span>
-                <span className="text-muted-foreground">({pkg.reviewsCount} reviews)</span>
+                <span className="text-muted-foreground">({pkg.reviewsCount} {pkg.reviewsCount === 1 ? 'review' : 'reviews'})</span>
               </div>
             )}
           </div>
@@ -141,7 +176,7 @@ export const FeaturedPackages = ({
           <div key={pkg.id} className="border-border flex-1 overflow-hidden rounded-lg border">
             <AspectRatio ratio={16 / 9}>
               <img
-                src={pkg.images[Math.min(1, pkg.images.length - 1)]}
+                src={getImageUrl(pkg.images[Math.min(1, pkg.images.length - 1)])}
                 alt={`${pkg.name} view ${index + 1}`}
                 className="h-full w-full object-cover transition-transform hover:scale-105"
               />

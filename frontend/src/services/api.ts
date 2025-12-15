@@ -1,9 +1,11 @@
 import axios from "axios";
 import { logger } from "@/lib/logger";
 import { toast } from "sonner";
+import { getAuthToken, clearAuthStorage } from "@/lib/auth-storage";
+import { API_BASE_URL, API_TIMEOUT } from "@/lib/constants";
 
-// API Base URL - will be configured from environment variables
-export const API_BASE_URL = import.meta.env.VITE_API_URL || "http://localhost:6543";
+// Re-export for backward compatibility
+export { API_BASE_URL };
 
 // Create axios instance with default config
 export const apiClient = axios.create({
@@ -11,14 +13,14 @@ export const apiClient = axios.create({
   headers: {
     "Content-Type": "application/json",
   },
-  timeout: 10000, // 10 seconds
+  timeout: API_TIMEOUT,
 });
 
 // Request interceptor - add auth token if available
 apiClient.interceptors.request.use(
   (config) => {
-    // Get token from localStorage (will be set after backend integration)
-    const token = localStorage.getItem("auth_token");
+    // Get token from helper
+    const token = getAuthToken();
     if (token) {
       config.headers.Authorization = `Bearer ${token}`;
     }
@@ -39,8 +41,8 @@ apiClient.interceptors.response.use(
 
       switch (status) {
         case 401:
-          // Unauthorized - clear auth and redirect to login
-          localStorage.removeItem("auth_token");
+          // Unauthorized - clear all auth data and redirect to login
+          clearAuthStorage();
           toast.error("Session expired. Please login again.");
           window.location.href = "/sign-in";
           break;

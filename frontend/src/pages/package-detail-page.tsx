@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from "react";
 import { useParams, useNavigate } from "react-router-dom";
-import { ArrowLeft, Calendar, MapPin, Star, Users, Phone, Heart } from "lucide-react";
+import { ArrowLeft, Calendar, MapPin, Star, Users, Phone, Heart, Loader2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { AspectRatio } from "@/components/ui/aspect-ratio";
@@ -16,29 +16,69 @@ import { useReviewStore } from "@/store/review-store";
 import { useWishlistStore } from "@/store/wishlist-store";
 import { ReviewCard } from "@/components/review-card";
 import { ReviewForm } from "@/components/review-form";
-import { mockDestinations, mockPackages, mockReviews } from "@/data/mock-data";
+import * as packageService from "@/services/package.service";
+import * as destinationService from "@/services/destination.service";
+import * as reviewService from "@/services/review.service";
 import { useSEO } from "@/hooks/use-seo";
 import { toast } from "sonner";
+import { getImageUrl } from "@/lib/image-utils";
+import { getWhatsAppLink } from "@/lib/formatters";
+import type { Package, Destination } from "@/types";
 
 export default function PackageDetailPage() {
   const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
-  const { destinations, packages, setDestinations, setPackages } = useDestinationStore();
+  const { destinations, setDestinations } = useDestinationStore();
   const { user, isAuthenticated } = useAuthStore();
   const { setReviews, getReviewsByPackage } = useReviewStore();
   const { addToWishlist, removeFromWishlist, isInWishlist } = useWishlistStore();
 
   const [selectedImage, setSelectedImage] = useState(0);
   const [showReviewForm, setShowReviewForm] = useState(false);
+  const [pkg, setPkg] = useState<Package | null>(null);
+  const [destination, setDestination] = useState<Destination | null>(null);
+  const [isLoading, setIsLoading] = useState(true);
 
   useEffect(() => {
-    setDestinations(mockDestinations);
-    setPackages(mockPackages);
-    setReviews(mockReviews);
-  }, [setDestinations, setPackages, setReviews]);
+    const fetchData = async () => {
+      if (!id) return;
 
-  const pkg = packages.find((p) => p.id === id);
-  const destination = pkg ? destinations.find((d) => d.id === pkg.destinationId) : undefined;
+      setIsLoading(true);
+      try {
+        // Fetch package detail
+        const packageData = await packageService.getPackageById(id);
+        setPkg(packageData);
+
+        // Fetch destinations if not already in store
+        if (destinations.length === 0) {
+          const destinationsData = await destinationService.getAllDestinations();
+          setDestinations(destinationsData);
+          const dest = destinationsData.find((d) => d.id === packageData.destinationId);
+          setDestination(dest || null);
+        } else {
+          const dest = destinations.find((d) => d.id === packageData.destinationId);
+          setDestination(dest || null);
+        }
+
+        // Fetch reviews for this package
+        try {
+          const reviewsData = await reviewService.getPackageReviews(id);
+          setReviews(reviewsData);
+        } catch {
+          // Reviews might not exist yet
+          setReviews([]);
+        }
+      } catch (err) {
+        console.error("Failed to fetch package:", err);
+        toast.error("Failed to load package details");
+        setPkg(null);
+      } finally {
+        setIsLoading(false);
+      }
+    };
+
+    fetchData();
+  }, [id, setDestinations, setReviews]);
 
   useSEO({
     title: pkg ? pkg.name : "Package Details",
@@ -47,6 +87,20 @@ export default function PackageDetailPage() {
       : "View detailed information about this travel package",
     keywords: `${pkg?.name || "travel package"}, ${destination?.name || "destination"}, package details, travel itinerary`,
   });
+
+  // Loading state
+  if (isLoading) {
+    return (
+      <MainLayout>
+        <div className="flex min-h-[50vh] items-center justify-center">
+          <div className="flex flex-col items-center gap-4">
+            <Loader2 className="h-8 w-8 animate-spin text-primary" />
+            <p className="text-muted-foreground">Loading package details...</p>
+          </div>
+        </div>
+      </MainLayout>
+    );
+  }
 
   if (!pkg || !destination) {
     return (
@@ -104,7 +158,7 @@ export default function PackageDetailPage() {
               <div className="border-border overflow-hidden rounded-lg border">
                 <AspectRatio ratio={16 / 9}>
                   <img
-                    src={pkg.images[selectedImage]}
+                    src={getImageUrl(pkg.images[selectedImage])}
                     alt={pkg.name}
                     className="h-full w-full object-cover"
                   />
@@ -116,13 +170,12 @@ export default function PackageDetailPage() {
                   <div
                     key={idx}
                     onClick={() => setSelectedImage(idx)}
-                    className={`border-border cursor-pointer overflow-hidden rounded-lg border transition-all ${
-                      selectedImage === idx ? "ring-primary ring-2" : "hover:opacity-80"
-                    }`}
+                    className={`border-border cursor-pointer overflow-hidden rounded-lg border transition-all ${selectedImage === idx ? "ring-primary ring-2" : "hover:opacity-80"
+                      }`}
                   >
                     <AspectRatio ratio={4 / 3}>
                       <img
-                        src={img}
+                        src={getImageUrl(img)}
                         alt={`${pkg.name} view ${idx + 1}`}
                         className="h-full w-full object-cover"
                       />
@@ -177,7 +230,9 @@ export default function PackageDetailPage() {
                   <div className="flex items-center gap-2">
                     <Phone className="text-muted-foreground h-4 w-4" />
                     <a
-                      href={`tel:${pkg.contactPhone}`}
+                      href={getWhatsAppLink(pkg.contactPhone)}
+                      target="_blank"
+                      rel="noopener noreferrer"
                       className="text-primary font-medium hover:underline"
                     >
                       {pkg.contactPhone}
@@ -223,7 +278,7 @@ export default function PackageDetailPage() {
               </Tabs>
 
               {/* Reviews Summary */}
-              {pkg.reviewsCount && (
+              {pkg.reviewsCount && pkg.reviewsCount > 0 && (
                 <Card className="border-border">
                   <CardHeader>
                     <CardTitle className="text-foreground text-lg">Reviews</CardTitle>
@@ -237,7 +292,7 @@ export default function PackageDetailPage() {
                       <Separator orientation="vertical" className="h-12" />
                       <div>
                         <p className="text-muted-foreground text-sm">
-                          Based on {pkg.reviewsCount} reviews
+                          Based on {pkg.reviewsCount} {pkg.reviewsCount === 1 ? 'review' : 'reviews'}
                         </p>
                       </div>
                     </div>
@@ -270,7 +325,11 @@ export default function PackageDetailPage() {
                 <CardContent className="space-y-4">
                   {getReviewsByPackage(id || "").length > 0 ? (
                     getReviewsByPackage(id || "").map((review) => (
-                      <ReviewCard key={review.id} review={review} touristName="Verified Tourist" />
+                      <ReviewCard 
+                        key={review.id} 
+                        review={review} 
+                        touristName={review.tourist?.name || "Anonymous Tourist"} 
+                      />
                     ))
                   ) : (
                     <div className="py-8 text-center">
@@ -311,7 +370,9 @@ export default function PackageDetailPage() {
                   <div className="flex items-center justify-between text-sm">
                     <span className="text-muted-foreground">Contact</span>
                     <a
-                      href={`tel:${pkg.contactPhone}`}
+                      href={getWhatsAppLink(pkg.contactPhone)}
+                      target="_blank"
+                      rel="noopener noreferrer"
                       className="text-primary flex items-center gap-1 font-medium hover:underline"
                     >
                       <Phone className="h-3 w-3" />

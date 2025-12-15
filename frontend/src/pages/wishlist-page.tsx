@@ -1,8 +1,8 @@
 "use client";
 
-import { useEffect } from "react";
+import { useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
-import { Heart, Trash2 } from "lucide-react";
+import { Heart, Trash2, Loader2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { AspectRatio } from "@/components/ui/aspect-ratio";
@@ -11,15 +11,18 @@ import MainLayout from "@/layout/main-layout";
 import { useDestinationStore } from "@/store/destination-store";
 import { useWishlistStore } from "@/store/wishlist-store";
 import { useAuthStore } from "@/store/auth-store";
-import { mockDestinations, mockPackages } from "@/data/mock-data";
+import * as packageService from "@/services/package.service";
+import * as destinationService from "@/services/destination.service";
 import { useSEO } from "@/hooks/use-seo";
 import { toast } from "sonner";
+import { getImageUrl } from "@/lib/image-utils";
 
 export default function WishlistPage() {
   const navigate = useNavigate();
   const { isAuthenticated } = useAuthStore();
   const { destinations, packages, setDestinations, setPackages } = useDestinationStore();
   const { wishlist, removeFromWishlist, clearWishlist } = useWishlistStore();
+  const [isLoading, setIsLoading] = useState(true);
 
   useSEO({
     title: "My Wishlist",
@@ -32,9 +35,26 @@ export default function WishlistPage() {
       navigate("/sign-in");
       return;
     }
-    setDestinations(mockDestinations);
-    setPackages(mockPackages);
-  }, [isAuthenticated, navigate, setDestinations, setPackages]);
+
+    const fetchData = async () => {
+      setIsLoading(true);
+      try {
+        const [packagesData, destinationsData] = await Promise.all([
+          packageService.getAllPackages(),
+          destinationService.getAllDestinations(),
+        ]);
+        setPackages(packagesData);
+        setDestinations(destinationsData);
+      } catch (error) {
+        console.error("Failed to fetch data:", error);
+        toast.error("Failed to load packages");
+      } finally {
+        setIsLoading(false);
+      }
+    };
+    fetchData();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [isAuthenticated, navigate]);
 
   const wishlistPackages = packages.filter((pkg) => wishlist.includes(pkg.id));
 
@@ -79,7 +99,11 @@ export default function WishlistPage() {
         </div>
 
         {/* Wishlist Grid */}
-        {wishlistPackages.length > 0 ? (
+        {isLoading ? (
+          <div className="flex min-h-[30vh] items-center justify-center">
+            <Loader2 className="h-8 w-8 animate-spin text-primary" />
+          </div>
+        ) : wishlistPackages.length > 0 ? (
           <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-3">
             {wishlistPackages.map((pkg) => {
               const destination = destinations.find((d) => d.id === pkg.destinationId);
@@ -94,7 +118,7 @@ export default function WishlistPage() {
                   >
                     <AspectRatio ratio={4 / 3}>
                       <img
-                        src={pkg.images[0]}
+                        src={getImageUrl(pkg.images[0])}
                         alt={pkg.name}
                         className="h-full w-full rounded-lg object-cover transition-all duration-500 ease-in-out"
                       />
@@ -128,7 +152,7 @@ export default function WishlistPage() {
                         <span className="text-muted-foreground">
                           {pkg.duration} {pkg.duration === 1 ? "Day" : "Days"}
                         </span>
-                        {pkg.rating && (
+                          {pkg.rating && pkg.reviewsCount && pkg.reviewsCount > 0 && (
                           <div className="flex items-center gap-1">
                             <span className="text-foreground font-semibold">⭐ {pkg.rating}</span>
                             <span className="text-muted-foreground">({pkg.reviewsCount})</span>

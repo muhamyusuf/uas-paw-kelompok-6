@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect } from "react";
+import { useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { Button } from "@/components/ui/button";
 import { BookingSearch } from "@/components/booking-search";
@@ -10,8 +10,10 @@ import { PromoSection } from "@/components/promo-section";
 import { NewsletterSection } from "@/components/newsletter-section";
 import MainLayout from "@/layout/main-layout";
 import { useDestinationStore } from "@/store/destination-store";
-import { mockDestinations, mockPackages } from "@/data/mock-data";
+import * as packageService from "@/services/package.service";
+import * as destinationService from "@/services/destination.service";
 import { useSEO } from "@/hooks/use-seo";
+import { Loader2 } from "lucide-react";
 
 const heroImage =
   "https://images.unsplash.com/photo-1540202404-a2f29016b523?q=80&w=2000&auto=format&fit=crop";
@@ -19,6 +21,7 @@ const heroImage =
 export default function LandingPage() {
   const navigate = useNavigate();
   const { destinations, packages, setDestinations, setPackages } = useDestinationStore();
+  const [isLoading, setIsLoading] = useState(true);
 
   useSEO({
     title: "Home",
@@ -30,10 +33,34 @@ export default function LandingPage() {
   });
 
   useEffect(() => {
-    // Load mock data on mount
-    setDestinations(mockDestinations);
-    setPackages(mockPackages);
-  }, [setDestinations, setPackages]);
+    const fetchData = async () => {
+      setIsLoading(true);
+      try {
+        const [packagesData, destinationsData] = await Promise.all([
+          packageService.getAllPackages(),
+          destinationService.getAllDestinations(),
+        ]);
+        setPackages(packagesData);
+        setDestinations(destinationsData);
+      } catch (error) {
+        console.error("Failed to fetch data:", error);
+      } finally {
+        setIsLoading(false);
+      }
+    };
+    fetchData();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
+  if (isLoading) {
+    return (
+      <MainLayout>
+        <div className="flex min-h-[50vh] items-center justify-center">
+          <Loader2 className="h-8 w-8 animate-spin text-primary" />
+        </div>
+      </MainLayout>
+    );
+  }
 
   return (
     <MainLayout>

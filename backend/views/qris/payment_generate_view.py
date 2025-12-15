@@ -29,15 +29,15 @@ def payment_generate(request):
     
     Response (200 OK):
     {
-        "qris_id": "uuid-of-latest-qris",
-        "static_qris_string": "00020126450014com.midtrans...",
-        "dynamic_qris_string": "00020126...[custom amount]",
+        "qrisId": "uuid-of-latest-qris",
+        "staticQrisString": "00020126450014com.midtrans...",
+        "dynamicQrisString": "00020126...[custom amount]",
         "amount": 1000000,
-        "fee_type": "rupiah",
-        "fee_value": 10000,
-        "total_amount": 1010000,
-        "foto_qr_url": "http://localhost:6543/qris/dynamic_[uuid].png",
-        "message": "Custom QRIS siap untuk diproses. Buka foto_qr_url atau scan untuk pembayaran."
+        "feeType": "rupiah",
+        "feeValue": 10000,
+        "totalAmount": 1010000,
+        "fotoQrUrl": "http://localhost:6543/qris/dynamic_[uuid].png",
+        "message": "Custom QRIS siap untuk diproses. Buka fotoQrUrl atau scan untuk pembayaran."
     }
     """
     try:
@@ -111,17 +111,17 @@ def payment_generate(request):
         dynamic_qr_url = f"{request.host_url.rstrip('/')}/qris/{dynamic_qr_filename}"
         
         return {
-            "qris_id": str(qris.id),
-            "static_qris_string": qris.static_qris_string,
-            "dynamic_qris_string": dynamic_qris_string,
+            "qrisId": str(qris.id),
+            "staticQrisString": qris.static_qris_string,
+            "dynamicQrisString": dynamic_qris_string,
             "amount": amount,
-            "fee_type": qris.fee_type,
-            "fee_value": float(qris.fee_value) if qris.fee_value else None,
-            "total_amount": total_amount,
-            "foto_qr_url": dynamic_qr_url,
-            "qr_code_image": dynamic_qr_path,
-            "created_at": qris.created_at.isoformat() if qris.created_at else None,
-            "message": "Custom QRIS berhasil di-generate. Buka foto_qr_url untuk QR code payment custom."
+            "feeType": qris.fee_type,
+            "feeValue": float(qris.fee_value) if qris.fee_value else None,
+            "totalAmount": total_amount,
+            "fotoQrUrl": dynamic_qr_url,
+            "qrCodeImage": dynamic_qr_path,
+            "createdAt": qris.created_at.isoformat() if qris.created_at else None,
+            "message": "Custom QRIS berhasil di-generate. Buka fotoQrUrl untuk QR code payment custom."
         }
     
     except Exception as e:

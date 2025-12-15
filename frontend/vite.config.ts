@@ -5,6 +5,7 @@ import path from "path";
 
 // https://vite.dev/config/
 export default defineConfig({
+  appType: 'spa', // Enable SPA fallback for client-side routing
   plugins: [react(), tailwindcss()],
   resolve: {
     alias: {
@@ -22,7 +23,7 @@ export default defineConfig({
         manualChunks: {
           // Core React libraries
           'react-vendor': ['react', 'react-dom', 'react-router-dom'],
-          
+
           // Radix UI - Dialog & Popover (heavy components)
           'radix-dialog': [
             '@radix-ui/react-dialog',
@@ -47,19 +48,19 @@ export default defineConfig({
             '@radix-ui/react-accordion',
             '@radix-ui/react-collapsible',
           ],
-          
+
           // Form & validation
           'form-vendor': ['zod', 'zustand'],
-          
+
           // Date utilities
           'date-vendor': ['date-fns'],
-          
+
           // Icons & notifications
           'ui-utils': ['lucide-react', 'sonner'],
-          
+
           // Animation (optional, can be code-split)
           'animation': ['framer-motion'],
-          
+
           // Pages - Group by feature
           'pages-auth': [
             './src/pages/auth/sign-in',

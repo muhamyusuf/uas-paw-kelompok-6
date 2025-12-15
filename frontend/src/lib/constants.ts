@@ -53,3 +53,15 @@ export const DATE_FORMATS = {
   DISPLAY: "PP",
   ISO: "yyyy-MM-dd",
 } as const;
+
+/**
+ * API Configuration
+ */
+export const API_BASE_URL = import.meta.env.VITE_API_URL || "http://localhost:6543";
+export const API_TIMEOUT = 10000; // 10 seconds
+
+/**
+ * File Upload Limits
+ */
+export const MAX_FILE_SIZE = 5 * 1024 * 1024; // 5MB
+export const ALLOWED_IMAGE_TYPES = ["image/jpeg", "image/png", "image/gif", "image/webp"];

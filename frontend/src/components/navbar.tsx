@@ -145,6 +145,10 @@ const Navbar = ({
                   <div className="flex flex-col gap-3">
                     {isAuthenticated && user ? (
                       <>
+                        <Button variant="outline" onClick={() => navigate("/wishlist")}>
+                          <Heart className="mr-2 h-4 w-4" />
+                          Wishlist
+                        </Button>
                         <Button variant="outline" onClick={() => navigate("/dashboard")}>
                           <User className="mr-2 h-4 w-4" />
                           Dashboard

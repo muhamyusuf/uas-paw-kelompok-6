@@ -18,8 +18,8 @@ import { useBookingStore } from "@/store/booking-store";
 import { reviewSchema } from "@/lib/validations";
 import { useFormValidation } from "@/hooks/use-form-validation";
 import { StarRating } from "@/components/star-rating";
-import { AlertCircle, CheckCircle } from "lucide-react";
-import type { Review } from "@/types";
+import { AlertCircle, CheckCircle, Loader2 } from "lucide-react";
+import * as reviewService from "@/services/review.service";
 
 interface ReviewFormProps {
   packageId: string;
@@ -101,16 +101,16 @@ export function ReviewForm({
 
     setIsSubmitting(true);
 
-    setTimeout(() => {
-      const newReview: Review = {
-        id: `review-${Date.now()}`,
+    try {
+      // Call real API to create review
+      const newReview = await reviewService.createReview({
         packageId,
-        touristId: user.id,
+        ...(bookingId && { bookingId }), // Only include bookingId if it exists
         rating,
         comment,
-        createdAt: new Date().toISOString(),
-      };
+      });
 
+      // Add to local store for immediate UI update
       addReview(newReview);
 
       // Mark booking as reviewed if bookingId is provided
@@ -118,12 +118,16 @@ export function ReviewForm({
         markBookingAsReviewed(bookingId);
       }
 
-      setIsSubmitting(false);
       onOpenChange(false);
       setRating(5);
       setComment("");
       toast.success("Review submitted successfully!");
-    }, 1000);
+    } catch (error) {
+      console.error("Failed to submit review:", error);
+      toast.error("Failed to submit review. Please try again.");
+    } finally {
+      setIsSubmitting(false);
+    }
   };
 
   return (
@@ -186,7 +190,14 @@ export function ReviewForm({
               Cancel
             </Button>
             <Button type="submit" disabled={isSubmitting || (!!bookingId && !canReview)}>
-              {isSubmitting ? "Submitting..." : "Submit Review"}
+              {isSubmitting ? (
+                <>
+                  <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                  Submitting...
+                </>
+              ) : (
+                "Submit Review"
+              )}
             </Button>
           </DialogFooter>
         </form>

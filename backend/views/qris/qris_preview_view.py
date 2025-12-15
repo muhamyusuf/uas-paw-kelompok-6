@@ -18,16 +18,16 @@ def qris_preview(request):
     
     Request (JSON):
     {
-        "static_qris_string": "00020126450014com.midtrans...",
-        "jumlah_bayar": 1000000,
-        "fee_type": "rupiah",
-        "fee_value": 10000
+        \"staticQrisString\": \"00020126450014com.midtrans...\",
+        \"jumlahBayar\": 1000000,
+        \"feeType\": \"rupiah\",
+        \"feeValue\": 10000
     }
     
     Response (200 OK):
     {
-        "base64_qr": "iVBORw0KGgoAAAANSUhEUgAA...",
-        "dynamic_qris_string": "00020126..."
+        \"base64Qr\": \"iVBORw0KGgoAAAANSUhEUgAA...\",
+        \"dynamicQrisString\": \"00020126...\"
     }
     """
     try:
@@ -39,40 +39,40 @@ def qris_preview(request):
             return {"error": "Invalid JSON body"}
         
         # Validate required fields
-        static_qris_string = body.get("static_qris_string", "").strip()
-        jumlah_bayar = body.get("jumlah_bayar")
-        fee_type = body.get("fee_type", "").strip() or None
-        fee_value = body.get("fee_value")
+        static_qris_string = body.get("staticQrisString", "").strip()
+        jumlah_bayar = body.get("jumlahBayar")
+        fee_type = body.get("feeType", "").strip() or None
+        fee_value = body.get("feeValue")
         
         if not static_qris_string:
             request.response.status = 400
-            return {"error": "static_qris_string is required"}
+            return {"error": "staticQrisString is required"}
         
         if jumlah_bayar is None:
             request.response.status = 400
-            return {"error": "jumlah_bayar is required"}
+            return {"error": "jumlahBayar is required"}
         
         # Parse numeric values
         try:
             jumlah_bayar = float(jumlah_bayar)
             if jumlah_bayar < 0:
-                raise ValueError("jumlah_bayar must be >= 0")
+                raise ValueError("jumlahBayar must be >= 0")
         except (ValueError, TypeError):
             request.response.status = 400
-            return {"error": "jumlah_bayar must be a valid number"}
+            return {"error": "jumlahBayar must be a valid number"}
         
         if fee_value is not None:
             try:
                 fee_value = float(fee_value)
                 if fee_value < 0:
-                    raise ValueError("fee_value must be >= 0")
+                    raise ValueError("feeValue must be >= 0")
             except (ValueError, TypeError):
                 request.response.status = 400
-                return {"error": "fee_value must be a valid number"}
+                return {"error": "feeValue must be a valid number"}
         
         if fee_type and fee_type not in ["persentase", "rupiah"]:
             request.response.status = 400
-            return {"error": "fee_type must be 'persentase' or 'rupiah'"}
+            return {"error": "feeType must be 'persentase' or 'rupiah'"}
         
         # Generate dynamic QRIS string
         try:
@@ -108,8 +108,8 @@ def qris_preview(request):
             return {"error": f"Failed to generate QR code: {str(e)}"}
         
         return {
-            "base64_qr": base64_qr,
-            "dynamic_qris_string": dynamic_qris_string,
+            "base64Qr": base64_qr,
+            "dynamicQrisString": dynamic_qris_string,
         }
     
     except Exception as e:

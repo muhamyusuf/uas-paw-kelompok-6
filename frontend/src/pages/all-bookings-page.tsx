@@ -3,6 +3,7 @@
 import { useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { format } from "date-fns";
+import { toast } from "sonner";
 import {
   Calendar,
   MapPin,
@@ -14,6 +15,9 @@ import {
   ArrowLeft,
   Star,
   Phone,
+  Loader2,
+  Upload,
+  FileCheck,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
@@ -22,10 +26,13 @@ import { Separator } from "@/components/ui/separator";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import MainLayout from "@/layout/main-layout";
 import { useAuthStore } from "@/store/auth-store";
-import { useBookingStore } from "@/store/booking-store";
-import { useDestinationStore } from "@/store/destination-store";
 import { ReviewForm } from "@/components/review-form";
 import { useSEO } from "@/hooks/use-seo";
+import * as bookingService from "@/services/booking.service";
+import * as packageService from "@/services/package.service";
+import * as destinationService from "@/services/destination.service";
+import * as paymentService from "@/services/payment.service";
+import type { Booking, Package, Destination } from "@/types";
 
 export default function AllBookingsPage() {
   const navigate = useNavigate();
@@ -37,8 +44,12 @@ export default function AllBookingsPage() {
     keywords: "all bookings, booking history, travel history, trip management",
   });
   const { user, isAuthenticated } = useAuthStore();
-  const { getBookingsByTourist } = useBookingStore();
-  const { destinations, packages } = useDestinationStore();
+
+  // API data states
+  const [isLoading, setIsLoading] = useState(true);
+  const [myBookings, setMyBookings] = useState<Booking[]>([]);
+  const [packages, setPackages] = useState<Package[]>([]);
+  const [destinations, setDestinations] = useState<Destination[]>([]);
 
   const [reviewDialogOpen, setReviewDialogOpen] = useState(false);
   const [selectedBooking, setSelectedBooking] = useState<{
@@ -47,13 +58,36 @@ export default function AllBookingsPage() {
     packageName: string;
   } | null>(null);
 
+  // Payment proof upload states
+  const [uploadingPaymentProof, setUploadingPaymentProof] = useState<string | null>(null);
+
   useEffect(() => {
     if (!isAuthenticated || user?.role !== "tourist") {
       navigate("/sign-in");
+      return;
     }
-  }, [isAuthenticated, user, navigate]);
 
-  const myBookings = user ? getBookingsByTourist(user.id) : [];
+    const fetchData = async () => {
+      setIsLoading(true);
+      try {
+        const [bookings, allPackages, allDestinations] = await Promise.all([
+          bookingService.getBookingsByTourist(user.id),
+          packageService.getAllPackages(),
+          destinationService.getAllDestinations(),
+        ]);
+        setMyBookings(bookings);
+        setPackages(allPackages);
+        setDestinations(allDestinations);
+      } catch (error) {
+        console.error("Failed to fetch bookings:", error);
+        toast.error("Failed to load bookings");
+      } finally {
+        setIsLoading(false);
+      }
+    };
+
+    fetchData();
+  }, [isAuthenticated, user, navigate]);
 
   const getStatusIcon = (status: string) => {
     switch (status) {
@@ -86,6 +120,47 @@ export default function AllBookingsPage() {
     setReviewDialogOpen(true);
   };
 
+  const handlePaymentProofUpload = async (bookingId: string, file: File) => {
+    setUploadingPaymentProof(bookingId);
+    try {
+      await paymentService.uploadPaymentProof(bookingId, file);
+      toast.success("Payment proof uploaded successfully! Waiting for verification.");
+      
+      // Refresh bookings to get updated status
+      const updatedBookings = await bookingService.getBookingsByTourist(user!.id);
+      setMyBookings(updatedBookings);
+    } catch (error) {
+      console.error("Failed to upload payment proof:", error);
+      const err = error as { response?: { data?: { error?: string } } };
+      toast.error(err.response?.data?.error || "Failed to upload payment proof");
+    } finally {
+      setUploadingPaymentProof(null);
+    }
+  };
+
+  const handleFileSelect = (bookingId: string) => {
+    const input = document.createElement("input");
+    input.type = "file";
+    input.accept = "image/jpeg,image/png,image/gif";
+    input.onchange = (e) => {
+      const file = (e.target as HTMLInputElement).files?.[0];
+      if (file) {
+        // Validate file size (5MB max)
+        if (file.size > 5 * 1024 * 1024) {
+          toast.error("File size must be less than 5MB");
+          return;
+        }
+        // Validate file type
+        if (!["image/jpeg", "image/png", "image/gif"].includes(file.type)) {
+          toast.error("Only JPEG, PNG, and GIF images are allowed");
+          return;
+        }
+        handlePaymentProofUpload(bookingId, file);
+      }
+    };
+    input.click();
+  };
+
   const stats = {
     total: myBookings.length,
     confirmed: myBookings.filter((b) => b.status === "confirmed").length,
@@ -93,6 +168,16 @@ export default function AllBookingsPage() {
     pending: myBookings.filter((b) => b.status === "pending").length,
     cancelled: myBookings.filter((b) => b.status === "cancelled").length,
   };
+
+  if (isLoading) {
+    return (
+      <MainLayout>
+        <div className="flex min-h-[50vh] items-center justify-center">
+          <Loader2 className="h-8 w-8 animate-spin text-primary" />
+        </div>
+      </MainLayout>
+    );
+  }
 
   return (
     <MainLayout>
@@ -274,6 +359,57 @@ export default function AllBookingsPage() {
                                     View Package Details
                                   </Button>
 
+                                  {/* Upload Payment Proof Button */}
+                                  {booking.status === "pending" && 
+                                   booking.paymentStatus &&
+                                   ["unpaid", "rejected"].includes(booking.paymentStatus) && (
+                                    <Button
+                                      onClick={() => handleFileSelect(booking.id)}
+                                      variant="outline"
+                                      className="flex w-full items-center gap-2"
+                                      disabled={uploadingPaymentProof === booking.id}
+                                    >
+                                      {uploadingPaymentProof === booking.id ? (
+                                        <>
+                                          <Loader2 className="h-4 w-4 animate-spin" />
+                                          Uploading...
+                                        </>
+                                      ) : (
+                                        <>
+                                          <Upload className="h-4 w-4" />
+                                          Upload Payment Proof
+                                        </>
+                                      )}
+                                    </Button>
+                                  )}
+
+                                  {/* Payment Status Indicators */}
+                                  {booking.paymentStatus === "pending_verification" && (
+                                    <div className="text-muted-foreground flex items-center gap-2 text-sm">
+                                      <Clock className="h-4 w-4 text-yellow-600" />
+                                      Payment verification pending
+                                    </div>
+                                  )}
+
+                                  {booking.paymentStatus === "verified" && (
+                                    <div className="text-muted-foreground flex items-center gap-2 text-sm">
+                                      <FileCheck className="h-4 w-4 text-green-600" />
+                                      Payment verified
+                                    </div>
+                                  )}
+
+                                  {booking.paymentStatus === "rejected" && booking.paymentRejectionReason && (
+                                    <div className="rounded-lg bg-destructive/10 p-2 text-sm">
+                                      <div className="flex items-center gap-2 text-destructive font-semibold">
+                                        <XCircle className="h-4 w-4" />
+                                        Payment rejected
+                                      </div>
+                                      <p className="text-muted-foreground mt-1 text-xs">
+                                        {booking.paymentRejectionReason}
+                                      </p>
+                                    </div>
+                                  )}
+
                                   {booking.status === "completed" && !booking.hasReviewed && (
                                     <Button
                                       onClick={() =>
@@ -303,18 +439,18 @@ export default function AllBookingsPage() {
 
                   {myBookings.filter((b) => status === "all" || b.status === status).length ===
                     0 && (
-                    <Card className="border-border p-12 text-center">
-                      <p className="text-muted-foreground mb-4">
-                        No {status !== "all" && status} bookings found
-                      </p>
-                      <Button
-                        onClick={() => navigate("/packages")}
-                        className="bg-primary text-primary-foreground hover:bg-primary/90"
-                      >
-                        Browse Packages
-                      </Button>
-                    </Card>
-                  )}
+                      <Card className="border-border p-12 text-center">
+                        <p className="text-muted-foreground mb-4">
+                          No {status !== "all" && status} bookings found
+                        </p>
+                        <Button
+                          onClick={() => navigate("/packages")}
+                          className="bg-primary text-primary-foreground hover:bg-primary/90"
+                        >
+                          Browse Packages
+                        </Button>
+                      </Card>
+                    )}
                 </TabsContent>
               ))}
             </Tabs>

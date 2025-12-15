@@ -1,7 +1,7 @@
 "use client";
 import React, { useState, useRef, useMemo } from "react";
 import { useNavigate, useLocation } from "react-router-dom";
-import { Home, Package, User, LayoutDashboard } from "lucide-react";
+import { Home, Package, User, LayoutDashboard, Heart } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { useAuthStore } from "@/store/auth-store";
 
@@ -38,6 +38,7 @@ export const MenuDock: React.FC<MenuDockProps> = ({
       { label: "Packages", icon: Package, path: "/packages" },
       ...(isAuthenticated
         ? [
+            { label: "Wishlist", icon: Heart, path: "/wishlist" },
             { label: "Dashboard", icon: LayoutDashboard, path: "/dashboard" },
             { label: "Profile", icon: User, path: "/profile" },
           ]

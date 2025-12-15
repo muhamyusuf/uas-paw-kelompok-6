@@ -12,7 +12,9 @@ import {
   Clock,
   ArrowLeft,
   Star,
+  Loader2,
 } from "lucide-react";
+import { getImageUrl } from "@/lib/image-utils";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
@@ -30,15 +32,21 @@ import {
 import MainLayout from "@/layout/main-layout";
 import { useSEO } from "@/hooks/use-seo";
 import { useAuthStore } from "@/store/auth-store";
-import { useDestinationStore } from "@/store/destination-store";
-import { useBookingStore } from "@/store/booking-store";
 import { toast } from "sonner";
+import * as packageService from "@/services/package.service";
+import * as destinationService from "@/services/destination.service";
+import * as bookingService from "@/services/booking.service";
+import type { Package, Destination, Booking } from "@/types";
 
 export default function ManagePackagesPage() {
   const navigate = useNavigate();
   const { user, isAuthenticated } = useAuthStore();
-  const { destinations, packages, deletePackage: removePackage } = useDestinationStore();
-  const { bookings } = useBookingStore();
+
+  // API data states
+  const [isLoading, setIsLoading] = useState(true);
+  const [packages, setPackages] = useState<Package[]>([]);
+  const [destinations, setDestinations] = useState<Destination[]>([]);
+  const [bookings, setBookings] = useState<Booking[]>([]);
   const [searchQuery, setSearchQuery] = useState("");
   const [deletePackageId, setDeletePackageId] = useState<string | null>(null);
 
@@ -52,23 +60,71 @@ export default function ManagePackagesPage() {
   useEffect(() => {
     if (!isAuthenticated || user?.role !== "agent") {
       navigate("/sign-in");
+      return;
     }
+
+    const fetchData = async () => {
+      setIsLoading(true);
+      try {
+        const [agentPackages, allDestinations] = await Promise.all([
+          packageService.getPackagesByAgent(user.id),
+          destinationService.getAllDestinations(),
+        ]);
+        setPackages(agentPackages);
+        setDestinations(allDestinations);
+
+        // Fetch bookings for all packages
+        const allBookings: Booking[] = [];
+        for (const pkg of agentPackages) {
+          try {
+            const pkgBookings = await bookingService.getBookingsByPackage(pkg.id);
+            allBookings.push(...pkgBookings);
+          } catch {
+            // Ignore errors for individual package bookings
+          }
+        }
+        setBookings(allBookings);
+      } catch (error) {
+        console.error("Failed to fetch packages:", error);
+        toast.error("Failed to load packages");
+      } finally {
+        setIsLoading(false);
+      }
+    };
+
+    fetchData();
   }, [isAuthenticated, user, navigate]);
 
-  const myPackages = packages.filter((pkg) => pkg.agentId === user?.id);
-  const filteredPackages = myPackages.filter((pkg) =>
+  const filteredPackages = packages.filter((pkg) =>
     pkg.name.toLowerCase().includes(searchQuery.toLowerCase())
   );
 
-  const handleDeletePackage = (packageId: string) => {
-    removePackage(packageId);
-    toast.success("Package deleted successfully!");
-    setDeletePackageId(null);
+  const handleDeletePackage = async (packageId: string) => {
+    try {
+      await packageService.deletePackage(packageId);
+      setPackages(prev => prev.filter(p => p.id !== packageId));
+      toast.success("Package deleted successfully!");
+    } catch (error) {
+      console.error("Failed to delete package:", error);
+      toast.error("Failed to delete package");
+    } finally {
+      setDeletePackageId(null);
+    }
   };
 
   const getPackageBookings = (packageId: string) => {
     return bookings.filter((b) => b.packageId === packageId);
   };
+
+  if (isLoading) {
+    return (
+      <MainLayout>
+        <div className="flex min-h-[50vh] items-center justify-center">
+          <Loader2 className="h-8 w-8 animate-spin text-primary" />
+        </div>
+      </MainLayout>
+    );
+  }
 
   return (
     <MainLayout>
@@ -103,7 +159,7 @@ export default function ManagePackagesPage() {
               <div className="text-muted-foreground mb-2 text-xs font-medium uppercase">
                 Total Packages
               </div>
-              <div className="text-foreground text-3xl font-bold">{myPackages.length}</div>
+              <div className="text-foreground text-3xl font-bold">{packages.length}</div>
             </CardContent>
           </Card>
           <Card className="border-border">
@@ -112,7 +168,7 @@ export default function ManagePackagesPage() {
                 Total Bookings
               </div>
               <div className="text-foreground text-3xl font-bold">
-                {bookings.filter((b) => myPackages.some((p) => p.id === b.packageId)).length}
+                {bookings.filter((b) => packages.some((p) => p.id === b.packageId)).length}
               </div>
             </CardContent>
           </Card>
@@ -122,10 +178,10 @@ export default function ManagePackagesPage() {
                 Avg Rating
               </div>
               <div className="text-foreground text-3xl font-bold">
-                {myPackages.length > 0
+                {packages.length > 0
                   ? (
-                      myPackages.reduce((sum, p) => sum + (p.rating || 0), 0) / myPackages.length
-                    ).toFixed(1)
+                    packages.reduce((sum, p) => sum + (p.rating || 0), 0) / packages.length
+                  ).toFixed(1)
                   : "0.0"}
               </div>
             </CardContent>
@@ -139,7 +195,7 @@ export default function ManagePackagesPage() {
                 $
                 {bookings
                   .filter(
-                    (b) => b.status === "confirmed" && myPackages.some((p) => p.id === b.packageId)
+                    (b) => b.status === "confirmed" && packages.some((p) => p.id === b.packageId)
                   )
                   .reduce((sum, b) => sum + b.totalPrice, 0)
                   .toLocaleString()}
@@ -173,7 +229,7 @@ export default function ManagePackagesPage() {
               >
                 <div className="relative">
                   <img
-                    src={pkg.images[0]}
+                    src={getImageUrl(pkg.images[0])}
                     alt={pkg.name}
                     className="aspect-video w-full rounded-lg object-cover"
                   />

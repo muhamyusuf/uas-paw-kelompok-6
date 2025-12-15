@@ -77,10 +77,12 @@ export const packageSchema = z.object({
   contactPhone: z
     .string()
     .min(1, "Contact phone number is required")
-    .min(10, "Please enter a valid phone number")
-    .max(20, "Phone number is too long"),
+    .regex(
+      /^(\+?62|0)\d{8,13}$/,
+      "Please enter a valid Indonesian phone number (e.g., +628123456789 or 08123456789)"
+    ),
   images: z
-    .array(z.string().url("Please enter a valid image URL"))
+    .array(z.string())
     .min(1, "At least one image is required")
     .max(10, "Maximum 10 images allowed"),
 });

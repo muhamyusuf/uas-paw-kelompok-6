@@ -20,15 +20,15 @@ def qris_detail(request):
     {
         "id": "uuid",
         "nama": "Pembayaran Paket A",
-        "jumlah_bayar": 1000000,
+        "jumlahBayar": 1000000,
         "status": "aktif",
-        "fee_type": "rupiah",
-        "fee_value": 10000,
-        "static_qris_string": "00020126...",
-        "dynamic_qris_string": "00020126...",
-        "foto_qr": "base64string",
-        "created_at": "2024-01-01T00:00:00Z",
-        "updated_at": "2024-01-01T00:00:00Z"
+        "feeType": "rupiah",
+        "feeValue": 10000,
+        "staticQrisString": "00020126...",
+        "dynamicQrisString": "00020126...",
+        "fotoQr": "base64string",
+        "createdAt": "2024-01-01T00:00:00Z",
+        "updatedAt": "2024-01-01T00:00:00Z"
     }
     """
     try:
@@ -49,12 +49,12 @@ def qris_detail(request):
         
         return {
             "id": str(qris.id),
-            "static_qris_string": qris.static_qris_string,
-            "dynamic_qris_string": qris.dynamic_qris_string,
-            "foto_qr_path": qris.foto_qr_path,
-            "fee_type": qris.fee_type,
-            "fee_value": float(qris.fee_value) if qris.fee_value else None,
-            "created_at": qris.created_at.isoformat() if qris.created_at else None,
+            "staticQrisString": qris.static_qris_string,
+            "dynamicQrisString": qris.dynamic_qris_string,
+            "fotoQrPath": qris.foto_qr_path,
+            "feeType": qris.fee_type,
+            "feeValue": float(qris.fee_value) if qris.fee_value else None,
+            "createdAt": qris.created_at.isoformat() if qris.created_at else None,
         }
     
     except Exception as e:
