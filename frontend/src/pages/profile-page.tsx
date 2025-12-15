@@ -10,11 +10,12 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { useAuthStore } from "@/store/auth-store";
 import { useNavigate } from "react-router-dom";
 import { toast } from "sonner";
-import { User, Shield, Bell, CreditCard } from "lucide-react";
+import { User, Shield, Bell, CreditCard, Loader2 } from "lucide-react";
 import { useSEO } from "@/hooks/use-seo";
+import * as authService from "@/services/auth.service";
 
 export default function ProfilePage() {
-  const { user, isAuthenticated } = useAuthStore();
+  const { user, isAuthenticated, setUser } = useAuthStore();
   const navigate = useNavigate();
 
   // Move all hooks before any conditional returns
@@ -31,6 +32,9 @@ export default function ProfilePage() {
     confirmPassword: "",
   });
 
+  const [isUpdatingProfile, setIsUpdatingProfile] = useState(false);
+  const [isChangingPassword, setIsChangingPassword] = useState(false);
+
   useSEO({
     title: "My Profile",
     description:
@@ -44,19 +48,56 @@ export default function ProfilePage() {
     return null;
   }
 
-  const handleProfileUpdate = (e: React.FormEvent) => {
+  const handleProfileUpdate = async (e: React.FormEvent) => {
     e.preventDefault();
-    toast.success("Profile updated successfully!");
+    setIsUpdatingProfile(true);
+    
+    try {
+      const response = await authService.updateProfile({
+        name: profileData.name,
+        email: profileData.email,
+      });
+      
+      // Update user in store
+      setUser(response.user);
+      toast.success("Profile updated successfully!");
+    } catch (error: unknown) {
+      const err = error as { response?: { data?: { error?: string } } };
+      toast.error(err.response?.data?.error || "Failed to update profile");
+    } finally {
+      setIsUpdatingProfile(false);
+    }
   };
 
-  const handlePasswordChange = (e: React.FormEvent) => {
+  const handlePasswordChange = async (e: React.FormEvent) => {
     e.preventDefault();
+    
     if (passwordData.newPassword !== passwordData.confirmPassword) {
       toast.error("Passwords do not match!");
       return;
     }
-    toast.success("Password changed successfully!");
-    setPasswordData({ currentPassword: "", newPassword: "", confirmPassword: "" });
+    
+    if (passwordData.newPassword.length < 6) {
+      toast.error("New password must be at least 6 characters!");
+      return;
+    }
+    
+    setIsChangingPassword(true);
+    
+    try {
+      await authService.changePassword({
+        currentPassword: passwordData.currentPassword,
+        newPassword: passwordData.newPassword,
+      });
+      
+      toast.success("Password changed successfully!");
+      setPasswordData({ currentPassword: "", newPassword: "", confirmPassword: "" });
+    } catch (error: unknown) {
+      const err = error as { response?: { data?: { error?: string } } };
+      toast.error(err.response?.data?.error || "Failed to change password");
+    } finally {
+      setIsChangingPassword(false);
+    }
   };
 
   const getInitials = (name: string) => {
@@ -177,9 +218,17 @@ export default function ProfilePage() {
 
                   <Button
                     type="submit"
+                    disabled={isUpdatingProfile}
                     className="bg-primary text-primary-foreground hover:bg-primary/90"
                   >
-                    Save Changes
+                    {isUpdatingProfile ? (
+                      <>
+                        <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                        Saving...
+                      </>
+                    ) : (
+                      "Save Changes"
+                    )}
                   </Button>
                 </form>
               </CardContent>
@@ -245,9 +294,17 @@ export default function ProfilePage() {
 
                   <Button
                     type="submit"
+                    disabled={isChangingPassword}
                     className="bg-primary text-primary-foreground hover:bg-primary/90"
                   >
-                    Update Password
+                    {isChangingPassword ? (
+                      <>
+                        <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                        Updating...
+                      </>
+                    ) : (
+                      "Update Password"
+                    )}
                   </Button>
                 </form>
               </CardContent>

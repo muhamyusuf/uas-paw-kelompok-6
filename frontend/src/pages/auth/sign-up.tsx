@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -13,8 +13,8 @@ import {
 } from "@/components/ui/select";
 import { useAuthStore } from "@/store/auth-store";
 import { toast } from "sonner";
-import { hashPassword } from "@/lib/crypto";
 import { useSEO } from "@/hooks/use-seo";
+import * as authService from "@/services/auth.service";
 
 interface SignUpProps {
   heading?: string;
@@ -42,13 +42,20 @@ const SignUp = ({
   signupUrl = "/sign-in",
 }: SignUpProps) => {
   const navigate = useNavigate();
-  const { register } = useAuthStore();
+  const { isAuthenticated } = useAuthStore();
   const [name, setName] = useState("");
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [confirmPassword, setConfirmPassword] = useState("");
   const [role, setRole] = useState<"tourist" | "agent">("tourist");
   const [isSubmitting, setIsSubmitting] = useState(false);
+
+  // Redirect if already authenticated
+  useEffect(() => {
+    if (isAuthenticated) {
+      navigate("/dashboard", { replace: true });
+    }
+  }, [isAuthenticated, navigate]);
 
   useSEO({
     title: "Sign Up",
@@ -57,7 +64,7 @@ const SignUp = ({
     keywords: "sign up, register, create account, new user registration",
   });
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
 
     if (password !== confirmPassword) {
@@ -65,48 +72,49 @@ const SignUp = ({
       return;
     }
 
-    if (name && email && password) {
-      setIsSubmitting(true);
-
-      // Simulate API call
-      setTimeout(() => {
-        // Use consistent user IDs for demo purposes
-        const userId = role === "tourist" ? "tourist-demo" : "agent1";
-
-        // Hash password before storing
-        const hashedPassword = hashPassword(password);
-
-        const newUser = {
-          id: userId,
-          name: name,
-          email: email,
-          password: hashedPassword,
-          role: role,
-        };
-
-        register(newUser);
-        toast.success(`Welcome to Wanderlust Inn, ${newUser.name}!`);
-        navigate("/dashboard");
-        setIsSubmitting(false);
-      }, 800);
-    } else {
+    if (!name || !email || !password) {
       toast.error("Please fill in all fields");
+      return;
+    }
+
+    setIsSubmitting(true);
+
+    try {
+      const response = await authService.register({ name, email, password, role });
+
+      // Registration successful - redirect to sign-in page
+      // Backend doesn't return token, so user needs to login after registering
+      toast.success(`Account created for ${response.user.name}! Please sign in.`);
+      navigate("/sign-in");
+    } catch (error: unknown) {
+      // Error is already handled by API interceptor
+      const err = error as { response?: { data?: { error?: string } } };
+      if (err.response?.data?.error) {
+        // Handle duplicate email error
+        if (err.response.data.error.includes("duplicate key")) {
+          toast.error("Email already registered. Please use a different email.");
+        } else {
+          toast.error("Registration failed. Please try again.");
+        }
+      }
+    } finally {
+      setIsSubmitting(false);
     }
   };
   return (
-    <section className="bg-muted h-screen">
-      <div className="flex h-full items-center justify-center px-4">
-        <div className="flex w-full max-w-md flex-col items-center gap-6">
+    <section className="bg-muted min-h-screen">
+      <div className="flex min-h-screen items-center justify-center px-4 py-6">
+        <div className="flex w-full max-w-sm flex-col items-center gap-3 sm:max-w-md sm:gap-6">
           <a href={logo.url}>
-            <img src={logo.src} alt={logo.alt} title={logo.title} className="h-10 dark:invert" />
+            <img src={logo.src} alt={logo.alt} title={logo.title} className="h-8 sm:h-10 dark:invert" />
           </a>
           <form
             onSubmit={handleSubmit}
-            className="border-muted bg-background flex w-full flex-col gap-y-4 rounded-md border px-6 py-8 shadow-md"
+            className="border-muted bg-background flex w-full flex-col gap-y-3 rounded-lg border px-4 py-5 shadow-md sm:gap-y-4 sm:px-6 sm:py-8"
           >
-            {heading && <h1 className="text-center text-xl font-semibold">{heading}</h1>}
+            {heading && <h1 className="text-center text-lg font-semibold sm:text-xl">{heading}</h1>}
 
-            <div className="space-y-2">
+            <div className="space-y-1 sm:space-y-2">
               <Label htmlFor="name">Full Name</Label>
               <Input
                 id="name"
@@ -119,7 +127,7 @@ const SignUp = ({
               />
             </div>
 
-            <div className="space-y-2">
+            <div className="space-y-1 sm:space-y-2">
               <Label htmlFor="email">Email</Label>
               <Input
                 id="email"
@@ -132,7 +140,7 @@ const SignUp = ({
               />
             </div>
 
-            <div className="space-y-2">
+            <div className="space-y-1 sm:space-y-2">
               <Label htmlFor="password">Password</Label>
               <Input
                 id="password"
@@ -145,7 +153,7 @@ const SignUp = ({
               />
             </div>
 
-            <div className="space-y-2">
+            <div className="space-y-1 sm:space-y-2">
               <Label htmlFor="confirmPassword">Confirm Password</Label>
               <Input
                 id="confirmPassword"
@@ -158,7 +166,7 @@ const SignUp = ({
               />
             </div>
 
-            <div className="space-y-2">
+            <div className="space-y-1 sm:space-y-2">
               <Label htmlFor="role">I am a</Label>
               <Select value={role} onValueChange={(value) => setRole(value as "tourist" | "agent")}>
                 <SelectTrigger id="role" className="w-full">
@@ -171,7 +179,7 @@ const SignUp = ({
               </Select>
             </div>
 
-            <Button type="submit" className="w-full" disabled={isSubmitting}>
+            <Button type="submit" className="mt-2 w-full" disabled={isSubmitting}>
               {isSubmitting ? (
                 <div className="flex items-center gap-2">
                   <Skeleton className="h-4 w-4 rounded-full" />

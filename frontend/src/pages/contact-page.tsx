@@ -40,9 +40,9 @@ export default function ContactPage() {
     },
     {
       icon: Phone,
-      title: "Phone",
-      content: "+1 (555) 123-4567",
-      link: "tel:+15551234567",
+      title: "WhatsApp",
+      content: "+62 812-3456-7890",
+      link: "https://wa.me/628123456790",
     },
     {
       icon: MapPin,

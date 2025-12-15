@@ -1,31 +1,38 @@
 import { useEffect, useState } from "react";
 import { useNavigate, useParams } from "react-router-dom";
-import { ArrowLeft } from "lucide-react";
+import { ArrowLeft, Loader2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { toast } from "sonner";
 import MainLayout from "@/layout/main-layout";
 import { useAuthStore } from "@/store/auth-store";
-import { useDestinationStore } from "@/store/destination-store";
 import { packageSchema } from "@/lib/validations";
-import { mockDestinations, mockPackages } from "@/data/mock-data";
 import { PackageForm } from "@/components/package-form";
 import { useFormValidation } from "@/hooks/use-form-validation";
-import { useImageArray } from "@/hooks/use-image-array";
+import { useFileArray } from "@/hooks/use-file-array";
 import { useSEO } from "@/hooks/use-seo";
+import * as packageService from "@/services/package.service";
+import * as destinationService from "@/services/destination.service";
+import type { Package, Destination } from "@/types";
 
 export default function EditPackagePage() {
   const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
   const { user, isAuthenticated } = useAuthStore();
-  const { destinations, packages, setDestinations, setPackages, updatePackage } =
-    useDestinationStore();
 
   useSEO({
     title: "Edit Package",
     description: "Update your travel package details, pricing, and availability.",
     keywords: "edit package, update package, package management, agent tools",
   });
+
+  // API data states
+  const [isLoading, setIsLoading] = useState(true);
+  const [pkg, setPkg] = useState<Package | null>(null);
+  const [destinations, setDestinations] = useState<Destination[]>([]);
+
+  // Track existing images from the server (as URLs)
+  const [existingImages, setExistingImages] = useState<string[]>([]);
 
   const [formData, setFormData] = useState({
     name: "",
@@ -39,84 +46,120 @@ export default function EditPackagePage() {
 
   const [isSubmitting, setIsSubmitting] = useState(false);
   const { errors, validate } = useFormValidation(packageSchema);
-  const { images, resetImages, addImage, removeImage, updateImage } = useImageArray();
+  const { files: imageFiles, previews: imagePreviews, addFiles, removeFile, canAddMore } = useFileArray(10);
 
   useEffect(() => {
     if (!isAuthenticated || user?.role !== "agent") {
       navigate("/sign-in");
       return;
     }
-    setDestinations(mockDestinations);
-    setPackages(mockPackages);
-  }, [isAuthenticated, user, navigate, setDestinations, setPackages]);
 
-  // Check permissions
-  useEffect(() => {
-    const pkg = packages.find((p) => p.id === id);
-    if (pkg && pkg.agentId !== user?.id) {
-      toast.error("You don't have permission to edit this package");
-      navigate("/manage-packages");
-    }
-  }, [packages, id, user?.id, navigate]);
+    const fetchData = async () => {
+      if (!id) return;
 
-  // Load package data - runs once when package is found
-  useEffect(() => {
-    const pkg = packages.find((p) => p.id === id);
-    if (pkg && pkg.agentId === user?.id) {
-      // Using a microtask to defer setState until after render
-      Promise.resolve().then(() => {
+      setIsLoading(true);
+      try {
+        const [packageData, destinationsData] = await Promise.all([
+          packageService.getPackageById(id),
+          destinationService.getAllDestinations(),
+        ]);
+
+        // Check permissions
+        if (packageData.agentId !== user.id) {
+          toast.error("You don't have permission to edit this package");
+          navigate("/manage-packages");
+          return;
+        }
+
+        setPkg(packageData);
+        setDestinations(destinationsData);
+
+        // Populate form
         setFormData({
-          name: pkg.name,
-          destinationId: pkg.destinationId,
-          duration: pkg.duration.toString(),
-          price: pkg.price.toString(),
-          itinerary: pkg.itinerary,
-          maxTravelers: pkg.maxTravelers.toString(),
-          contactPhone: pkg.contactPhone || "",
+          name: packageData.name,
+          destinationId: packageData.destinationId,
+          duration: packageData.duration.toString(),
+          price: packageData.price.toString(),
+          itinerary: packageData.itinerary,
+          maxTravelers: packageData.maxTravelers.toString(),
+          contactPhone: packageData.contactPhone || "",
         });
-        resetImages(pkg.images.length > 0 ? pkg.images : [""]);
-      });
-    }
-  }, [packages, id, user?.id, resetImages]);
+
+        // Store existing images from the package
+        setExistingImages(packageData.images || []);
+      } catch (error) {
+        console.error("Failed to fetch package:", error);
+        toast.error("Failed to load package");
+        navigate("/manage-packages");
+      } finally {
+        setIsLoading(false);
+      }
+    };
+
+    fetchData();
+  }, [isAuthenticated, user, navigate, id]);
 
   const handleFieldChange = (field: string, value: string) => {
     setFormData((prev) => ({ ...prev, [field]: value }));
   };
 
+  const handleRemoveExistingImage = (index: number) => {
+    setExistingImages((prev) => prev.filter((_, i) => i !== index));
+  };
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
+
+    // Need at least 1 image (existing or new)
+    const totalImages = existingImages.length + imageFiles.length;
+    if (totalImages === 0) {
+      toast.error("Please keep at least 1 image or upload new ones");
+      return;
+    }
 
     const dataToValidate = {
       ...formData,
       duration: Number(formData.duration),
       price: Number(formData.price),
       maxTravelers: Number(formData.maxTravelers),
-      images: images.filter((img) => img.trim() !== ""),
+      images: [...existingImages, ...imageFiles.map((f) => f.name)], // For validation only
     };
 
     if (!validate(dataToValidate)) return;
 
     setIsSubmitting(true);
 
-    setTimeout(() => {
-      updatePackage(id!, {
+    try {
+      await packageService.updatePackage(id!, {
         name: dataToValidate.name,
-        destinationId: dataToValidate.destinationId,
         duration: dataToValidate.duration,
         price: dataToValidate.price,
         itinerary: dataToValidate.itinerary,
         maxTravelers: dataToValidate.maxTravelers,
         contactPhone: dataToValidate.contactPhone,
-        images: dataToValidate.images,
+        images: existingImages, // Keep existing images (update API uses JSON, not FormData)
       });
 
-      setIsSubmitting(false);
       toast.success("Package updated successfully!");
       navigate("/manage-packages");
-    }, 1000);
+    } catch (error) {
+      console.error("Failed to update package:", error);
+      toast.error("Failed to update package");
+    } finally {
+      setIsSubmitting(false);
+    }
   };
 
-  const pkg = packages.find((p) => p.id === id);
+  // Loading and not found states
+  if (isLoading) {
+    return (
+      <MainLayout>
+        <div className="flex min-h-[50vh] items-center justify-center">
+          <Loader2 className="h-8 w-8 animate-spin text-primary" />
+        </div>
+      </MainLayout>
+    );
+  }
 
   if (!pkg) {
     return (
@@ -154,17 +197,50 @@ export default function EditPackagePage() {
                 <CardHeader>
                   <CardTitle>Package Information</CardTitle>
                 </CardHeader>
-                <CardContent>
+                <CardContent className="space-y-6">
                   <PackageForm
                     formData={formData}
-                    images={images}
+                    imageFiles={imageFiles}
+                    imagePreviews={imagePreviews}
                     errors={errors}
                     destinations={destinations}
                     onFieldChange={handleFieldChange}
-                    onImageAdd={addImage}
-                    onImageRemove={removeImage}
-                    onImageChange={updateImage}
+                    onFilesAdd={addFiles}
+                    onFileRemove={removeFile}
+                    canAddMoreFiles={canAddMore && (existingImages.length + imageFiles.length) < 10}
                   />
+
+                  {/* Existing Images Section */}
+                  {existingImages.length > 0 && (
+                    <div className="space-y-2">
+                      <p className="text-sm font-medium">Current Images</p>
+                      <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-3">
+                        {existingImages.map((img, index) => (
+                          <Card key={index} className="border-border overflow-hidden group relative">
+                            <CardContent className="p-0">
+                              <div className="aspect-video relative">
+                                <img
+                                  src={img}
+                                  alt={`Existing ${index + 1}`}
+                                  className="w-full h-full object-cover"
+                                />
+                                <div className="absolute inset-0 bg-black/40 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center">
+                                  <Button
+                                    type="button"
+                                    variant="destructive"
+                                    size="sm"
+                                    onClick={() => handleRemoveExistingImage(index)}
+                                  >
+                                    Remove
+                                  </Button>
+                                </div>
+                              </div>
+                            </CardContent>
+                          </Card>
+                        ))}
+                      </div>
+                    </div>
+                  )}
                 </CardContent>
               </Card>
             </div>

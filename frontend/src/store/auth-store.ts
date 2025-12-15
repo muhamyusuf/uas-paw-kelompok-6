@@ -1,6 +1,7 @@
 import { create } from "zustand";
 import { persist } from "zustand/middleware";
 import type { User } from "@/types";
+import { clearAuthStorage } from "@/lib/auth-storage";
 
 interface AuthStore {
   user: User | null;
@@ -10,6 +11,7 @@ interface AuthStore {
   logout: () => void;
   register: (user: User) => void;
   setLoading: (loading: boolean) => void;
+  setUser: (user: User) => void;
 }
 
 export const useAuthStore = create<AuthStore>()(
@@ -19,9 +21,15 @@ export const useAuthStore = create<AuthStore>()(
       isAuthenticated: false,
       isLoading: false,
       login: (user) => set({ user, isAuthenticated: true }),
-      logout: () => set({ user: null, isAuthenticated: false }),
+      logout: () => {
+        // Clear all auth data using helper
+        clearAuthStorage();
+        // Reset state
+        set({ user: null, isAuthenticated: false });
+      },
       register: (user) => set({ user, isAuthenticated: true }),
       setLoading: (loading) => set({ isLoading: loading }),
+      setUser: (user) => set({ user }),
     }),
     {
       name: "auth-storage",

@@ -14,12 +14,12 @@ from helpers.jwt_validate_helper import jwt_validate
 def review_create(request):
     """
     POST /api/reviews
-    Create review (Tourist only, after completed trip)
+    Create review (Tourist only)
     
     Request Body:
     {
         "packageId": "uuid",
-        "bookingId": "uuid",
+        "bookingId": "uuid",  // Optional - only required if reviewing from booking
         "rating": 5,
         "comment": "Amazing experience! The package was well organized and the destination was breathtaking."
     }
@@ -29,7 +29,7 @@ def review_create(request):
         "id": "uuid",
         "packageId": "uuid",
         "touristId": "uuid-from-token",
-        "bookingId": "uuid",
+        "bookingId": "uuid",  // Can be null if not linked to booking
         "rating": 5,
         "comment": "Amazing experience! The package was well organized...",
         "createdAt": "2024-12-06T10:00:00Z"
@@ -55,13 +55,14 @@ def review_create(request):
         
         # Validate required fields
         package_id = body.get("packageId")
-        booking_id = body.get("bookingId")
+        booking_id = body.get("bookingId")  # Optional
         rating = body.get("rating")
         comment = body.get("comment")
         
-        if not all([package_id, booking_id, rating, comment]):
+        # Only package_id, rating, and comment are required
+        if not all([package_id, rating, comment]):
             request.response.status = 400
-            return {"error": "Missing required fields"}
+            return {"error": "Missing required fields: packageId, rating, comment"}
         
         # Validate rating
         try:
@@ -87,46 +88,49 @@ def review_create(request):
             request.response.status = 404
             return {"error": "Package not found"}
         
-        # Verify booking exists and belongs to tourist
-        query_booking = select(Booking).where(Booking.id == booking_id)
-        result_booking = db_session.execute(query_booking)
-        booking = result_booking.scalar_one_or_none()
-        
-        if not booking:
-            request.response.status = 404
-            return {"error": "Booking not found"}
-        
-        # Verify booking belongs to tourist
-        if str(booking.tourist_id) != user_id:
-            request.response.status = 403
-            return {"error": "Forbidden"}
-        
-        # Verify booking is for this package
-        if str(booking.package_id) != str(package_id):
-            request.response.status = 400
-            return {"error": "Booking does not match package"}
-        
-        # Verify booking is completed
-        if booking.status != "completed":
-            request.response.status = 400
-            return {"error": "Booking must be completed to leave a review"}
-        
-        # Verify booking hasn't been reviewed
-        if booking.has_reviewed:
-            request.response.status = 400
-            return {"error": "This booking has already been reviewed"}
+        # Verify booking if bookingId is provided
+        booking = None
+        if booking_id:
+            query_booking = select(Booking).where(Booking.id == booking_id)
+            result_booking = db_session.execute(query_booking)
+            booking = result_booking.scalar_one_or_none()
+            
+            if not booking:
+                request.response.status = 404
+                return {"error": "Booking not found"}
+            
+            # Verify booking belongs to tourist
+            if str(booking.tourist_id) != user_id:
+                request.response.status = 403
+                return {"error": "Forbidden"}
+            
+            # Verify booking is for this package
+            if str(booking.package_id) != str(package_id):
+                request.response.status = 400
+                return {"error": "Booking does not match package"}
+            
+            # Verify booking is completed
+            if booking.status != "completed":
+                request.response.status = 400
+                return {"error": "Booking must be completed to leave a review"}
+            
+            # Verify booking hasn't been reviewed
+            if booking.has_reviewed:
+                request.response.status = 400
+                return {"error": "This booking has already been reviewed"}
         
         # Create review
         review = Review(
             package_id=package_id,
             tourist_id=user_id,
-            booking_id=booking_id,
+            booking_id=booking_id if booking_id else None,
             rating=rating,
             comment=comment
         )
         
-        # Update booking
-        booking.has_reviewed = True
+        # Update booking if exists
+        if booking:
+            booking.has_reviewed = True
         
         db_session.add(review)
         db_session.flush()
@@ -137,7 +141,7 @@ def review_create(request):
             "id": str(review.id),
             "packageId": str(review.package_id),
             "touristId": str(review.tourist_id),
-            "bookingId": str(review.booking_id),
+            "bookingId": str(review.booking_id) if review.booking_id else None,
             "rating": review.rating,
             "comment": review.comment,
             "createdAt": review.created_at.isoformat() if review.created_at else None

@@ -10,7 +10,7 @@ from db import Session
 from models.user_model import User
 
 
-class FromRequest(BaseModel):
+class LoginRequest(BaseModel):
     email: str
     password: str
 
@@ -19,7 +19,7 @@ class FromRequest(BaseModel):
 def login(request):
     # request validation
     try:
-        req_data = FromRequest(**request.json_body)
+        req_data = LoginRequest(**request.json_body)
     except ValidationError as err:
         return Response(json_body={"error": str(err.errors())}, status=400)
 

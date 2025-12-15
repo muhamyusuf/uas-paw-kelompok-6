@@ -22,13 +22,16 @@ import MainLayout from "@/layout/main-layout";
 import { useDestinationStore } from "@/store/destination-store";
 import { useBookingStore } from "@/store/booking-store";
 import { useAuthStore } from "@/store/auth-store";
-import { mockDestinations, mockPackages } from "@/data/mock-data";
+import * as packageService from "@/services/package.service";
+import * as destinationService from "@/services/destination.service";
+import * as bookingService from "@/services/booking.service";
 import { useSEO } from "@/hooks/use-seo";
+import type { Package, Destination } from "@/types";
 
 export default function BookingPage() {
   const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
-  const { destinations, packages, setDestinations, setPackages } = useDestinationStore();
+  const { destinations, setDestinations } = useDestinationStore();
   const { addBooking } = useBookingStore();
   const { user, isAuthenticated } = useAuthStore();
 
@@ -36,6 +39,8 @@ export default function BookingPage() {
   const [travelersCount, setTravelersCount] = useState(2);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [isLoading, setIsLoading] = useState(true);
+  const [pkg, setPkg] = useState<Package | null>(null);
+  const [destination, setDestination] = useState<Destination | null>(null);
 
   // Date validation
   const minDate = addDays(new Date(), 3); // Minimum 3 days from now
@@ -50,19 +55,34 @@ export default function BookingPage() {
       navigate("/sign-in", { state: { from: `/book/${id}` } });
       return;
     }
-    // Using Promise to avoid setState in effect
-    Promise.resolve().then(() => {
-      setIsLoading(true);
-      setTimeout(() => {
-        setDestinations(mockDestinations);
-        setPackages(mockPackages);
-        setIsLoading(false);
-      }, 500);
-    });
-  }, [isAuthenticated, navigate, id, setDestinations, setPackages]);
 
-  const pkg = packages.find((p) => p.id === id);
-  const destination = pkg ? destinations.find((d) => d.id === pkg.destinationId) : undefined;
+    const fetchData = async () => {
+      if (!id) return;
+
+      setIsLoading(true);
+      try {
+        const packageData = await packageService.getPackageById(id);
+        setPkg(packageData);
+
+        if (destinations.length === 0) {
+          const destinationsData = await destinationService.getAllDestinations();
+          setDestinations(destinationsData);
+          const dest = destinationsData.find((d) => d.id === packageData.destinationId);
+          setDestination(dest || null);
+        } else {
+          const dest = destinations.find((d) => d.id === packageData.destinationId);
+          setDestination(dest || null);
+        }
+      } catch (err) {
+        console.error("Failed to fetch package:", err);
+        toast.error("Failed to load package details");
+      } finally {
+        setIsLoading(false);
+      }
+    };
+
+    fetchData();
+  }, [isAuthenticated, navigate, id, destinations.length, setDestinations]);
 
   useSEO({
     title: pkg ? `Book ${pkg.name}` : "Book Package",
@@ -72,48 +92,47 @@ export default function BookingPage() {
     keywords: "book travel package, reserve vacation, travel booking, package reservation",
   });
 
+  if (isLoading) {
+    return (
+      <MainLayout>
+        <section className="space-y-6 py-2 md:space-y-8 md:py-8 lg:py-12">
+          <Skeleton className="h-10 w-32" />
+          <div className="grid gap-8 lg:grid-cols-3">
+            <div className="space-y-6 lg:col-span-2">
+              <Skeleton className="aspect-video w-full rounded-lg" />
+              <div className="space-y-4">
+                <Skeleton className="h-8 w-3/4" />
+                <Skeleton className="h-6 w-1/2" />
+              </div>
+            </div>
+            <div className="lg:col-span-1">
+              <Card className="border-border sticky top-8">
+                <CardHeader>
+                  <Skeleton className="h-6 w-32" />
+                </CardHeader>
+                <CardContent className="space-y-4">
+                  <Skeleton className="h-20 w-full" />
+                  <Skeleton className="h-10 w-full" />
+                </CardContent>
+              </Card>
+            </div>
+          </div>
+        </section>
+      </MainLayout>
+    );
+  }
+
   if (!pkg || !destination) {
     return (
       <MainLayout>
-        {isLoading ? (
-          <section className="space-y-6 py-2 md:space-y-8 md:py-8 lg:py-12">
-            <Skeleton className="h-10 w-32" />
-            <div className="grid gap-8 lg:grid-cols-3">
-              <div className="space-y-6 lg:col-span-2">
-                <Skeleton className="aspect-video w-full rounded-lg" />
-                <div className="space-y-4">
-                  <Skeleton className="h-8 w-3/4" />
-                  <Skeleton className="h-6 w-1/2" />
-                  <Skeleton className="h-4 w-full" />
-                  <Skeleton className="h-4 w-full" />
-                  <Skeleton className="h-4 w-2/3" />
-                </div>
-              </div>
-              <div className="lg:col-span-1">
-                <Card className="border-border sticky top-8">
-                  <CardHeader>
-                    <Skeleton className="h-6 w-32" />
-                  </CardHeader>
-                  <CardContent className="space-y-4">
-                    <Skeleton className="h-20 w-full" />
-                    <Skeleton className="h-20 w-full" />
-                    <Skeleton className="h-32 w-full" />
-                    <Skeleton className="h-10 w-full" />
-                  </CardContent>
-                </Card>
-              </div>
-            </div>
-          </section>
-        ) : (
-          <div className="flex min-h-[50vh] items-center justify-center">
-            <Card className="border-border p-8 text-center">
-              <p className="text-muted-foreground">Package not found</p>
-              <Button onClick={() => navigate("/packages")} className="mt-4" variant="outline">
-                Back to Packages
-              </Button>
-            </Card>
-          </div>
-        )}
+        <div className="flex min-h-[50vh] items-center justify-center">
+          <Card className="border-border p-8 text-center">
+            <p className="text-muted-foreground">Package not found</p>
+            <Button onClick={() => navigate("/packages")} className="mt-4" variant="outline">
+              Back to Packages
+            </Button>
+          </Card>
+        </div>
       </MainLayout>
     );
   }
@@ -142,26 +161,26 @@ export default function BookingPage() {
 
     setIsSubmitting(true);
 
-    // Simulate API call
-    setTimeout(() => {
-      const booking = {
-        id: `booking-${Date.now()}`,
+    try {
+      // Call real API to create booking
+      const booking = await bookingService.createBooking({
         packageId: pkg.id,
-        touristId: user.id,
-        travelDate: travelDate.toISOString(),
+        travelDate: travelDate.toISOString().split('T')[0], // Format as YYYY-MM-DD
         travelersCount,
         totalPrice,
-        status: "pending" as const,
-        createdAt: new Date().toISOString(),
-        paymentStatus: "unpaid" as const,
-      };
+      });
 
+      // Add to local store for immediate UI update
       addBooking(booking);
-      setIsSubmitting(false);
 
-      // Redirect to success page
+      toast.success("Booking created successfully!");
       navigate(`/booking-success?bookingId=${booking.id}`);
-    }, 1000);
+    } catch (error) {
+      console.error("Booking failed:", error);
+      toast.error("Failed to create booking. Please try again.");
+    } finally {
+      setIsSubmitting(false);
+    }
   };
 
   return (

@@ -3,14 +3,9 @@ import type { Review } from "@/types";
 
 export interface CreateReviewRequest {
   packageId: string;
+  bookingId?: string; // Optional - review can be submitted without booking
   rating: number;
   comment: string;
-}
-
-export interface UpdateReviewRequest {
-  id: string;
-  rating?: number;
-  comment?: string;
 }
 
 // Get all reviews for a package
@@ -18,12 +13,6 @@ export const getPackageReviews = async (packageId: string): Promise<Review[]> =>
   const response = await apiClient.get<Review[]>(
     `/api/reviews/package/${packageId}`
   );
-  return response.data;
-};
-
-// Get review by ID
-export const getReviewById = async (id: string): Promise<Review> => {
-  const response = await apiClient.get<Review>(`/api/reviews/${id}`);
   return response.data;
 };
 
@@ -45,27 +34,16 @@ export const createReview = async (
   return response.data;
 };
 
-// Update review (Tourist can edit their own review)
-export const updateReview = async (
-  data: UpdateReviewRequest
-): Promise<Review> => {
-  const { id, ...updateData } = data;
-  const response = await apiClient.put<Review>(
-    `/api/reviews/${id}`,
-    updateData
-  );
-  return response.data;
-};
-
-// Delete review (Tourist can delete their own review)
-export const deleteReview = async (id: string): Promise<void> => {
-  await apiClient.delete(`/api/reviews/${id}`);
-};
-
-// Get average rating for a package
-export const getPackageRating = async (
-  packageId: string
-): Promise<{ average: number; count: number }> => {
-  const response = await apiClient.get(`/api/reviews/package/${packageId}/rating`);
-  return response.data;
+// Helper: Calculate average rating from reviews array (client-side)
+export const calculatePackageRating = (
+  reviews: Review[]
+): { average: number; count: number } => {
+  if (reviews.length === 0) {
+    return { average: 0, count: 0 };
+  }
+  const total = reviews.reduce((sum, review) => sum + review.rating, 0);
+  return {
+    average: Math.round((total / reviews.length) * 10) / 10,
+    count: reviews.length
+  };
 };

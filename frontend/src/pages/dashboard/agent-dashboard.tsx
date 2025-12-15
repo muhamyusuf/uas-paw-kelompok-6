@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect } from "react";
+import { useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { format } from "date-fns";
 import { toast } from "sonner";
@@ -12,6 +12,7 @@ import {
   CheckCircle2,
   XCircle,
   AlertCircle,
+  Loader2,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -28,16 +29,31 @@ import {
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import MainLayout from "@/layout/main-layout";
 import { useAuthStore } from "@/store/auth-store";
-import { useBookingStore } from "@/store/booking-store";
 import { useSEO } from "@/hooks/use-seo";
-import { useDestinationStore } from "@/store/destination-store";
-import { mockDestinations, mockPackages } from "@/data/mock-data";
+import { hasAuthToken, clearAuthStorage } from "@/lib/auth-storage";
+import * as analyticsService from "@/services/analytics.service";
+import * as packageService from "@/services/package.service";
+import * as bookingService from "@/services/booking.service";
+import * as destinationService from "@/services/destination.service";
+import type { Package, Booking, Destination } from "@/types";
 
 export default function AgentDashboard() {
   const navigate = useNavigate();
   const { user, isAuthenticated } = useAuthStore();
-  const { bookings, updateBookingStatus } = useBookingStore();
-  const { destinations, packages, setDestinations, setPackages } = useDestinationStore();
+
+  // API data states
+  const [isLoading, setIsLoading] = useState(true);
+  const [packages, setPackages] = useState<Package[]>([]);
+  const [bookings, setBookings] = useState<Booking[]>([]);
+  const [destinations, setDestinations] = useState<Destination[]>([]);
+  const [stats, setStats] = useState({
+    totalPackages: 0,
+    totalBookings: 0,
+    pendingBookings: 0,
+    confirmedBookings: 0,
+    totalRevenue: 0,
+    averageRating: 0,
+  });
 
   useSEO({
     title: "Agent Dashboard",
@@ -51,27 +67,91 @@ export default function AgentDashboard() {
       navigate("/sign-in");
       return;
     }
-    setDestinations(mockDestinations);
-    setPackages(mockPackages);
-  }, [isAuthenticated, user, navigate, setDestinations, setPackages]);
 
-  // Get packages created by this agent
-  const myPackages = packages.filter((pkg) => pkg.agentId === user?.id);
+    if (!user?.id) {
+      console.error("User ID is missing");
+      toast.error("User session invalid. Please login again.");
+      navigate("/sign-in");
+      return;
+    }
 
-  // Get bookings for agent's packages
-  const myBookings = bookings.filter((booking) =>
-    myPackages.some((pkg) => pkg.id === booking.packageId)
-  );
+    // Check if token exists
+    if (!hasAuthToken()) {
+      console.error("Auth token is missing");
+      toast.error("Please login to continue.");
+      clearAuthStorage();
+      navigate("/sign-in");
+      return;
+    }
 
-  const stats = {
-    totalPackages: myPackages.length,
-    totalBookings: myBookings.length,
-    pendingBookings: myBookings.filter((b) => b.status === "pending").length,
-    confirmedBookings: myBookings.filter((b) => b.status === "confirmed").length,
-    totalRevenue: myBookings
-      .filter((b) => b.status === "confirmed")
-      .reduce((sum, b) => sum + b.totalPrice, 0),
-  };
+    const fetchData = async () => {
+      setIsLoading(true);
+      try {
+        // Fetch agent's packages
+        const agentPackages = await packageService.getPackagesByAgent(user.id);
+        setPackages(agentPackages);
+
+        // Fetch destinations
+        const allDestinations = await destinationService.getAllDestinations();
+        setDestinations(allDestinations);
+
+        // Fetch bookings for agent's packages
+        const allBookings: Booking[] = [];
+        for (const pkg of agentPackages) {
+          const pkgBookings = await bookingService.getBookingsByPackage(pkg.id);
+          allBookings.push(...pkgBookings);
+        }
+        setBookings(allBookings);
+
+        // Try to fetch analytics (may fail if endpoint not ready)
+        try {
+          const agentStats = await analyticsService.getAgentStats();
+          setStats({
+            totalPackages: agentStats.totalPackages,
+            totalBookings: agentStats.totalBookings,
+            pendingBookings: agentStats.pendingBookings,
+            confirmedBookings: agentStats.confirmedBookings,
+            totalRevenue: agentStats.totalRevenue,
+            averageRating: agentStats.averageRating,
+          });
+        } catch {
+          // Fallback: calculate from fetched data
+          setStats({
+            totalPackages: agentPackages.length,
+            totalBookings: allBookings.length,
+            pendingBookings: allBookings.filter(b => b.status === "pending").length,
+            confirmedBookings: allBookings.filter(b => b.status === "confirmed").length,
+            totalRevenue: allBookings
+              .filter(b => b.status === "confirmed")
+              .reduce((sum, b) => sum + b.totalPrice, 0),
+            averageRating: 0,
+          });
+        }
+      } catch (error) {
+        console.error("Failed to fetch dashboard data:", error);
+        const err = error as { response?: { status?: number } };
+        
+        // Check if it's an authentication error
+        if (err.response?.status === 401) {
+          toast.error("Session expired. Please login again.");
+          clearAuthStorage();
+          navigate("/sign-in");
+        } else {
+          toast.error("Failed to load dashboard data. Please try again.");
+        }
+      } finally {
+        setIsLoading(false);
+      }
+    };
+
+    fetchData();
+  }, [isAuthenticated, user, navigate]);
+
+  // Get packages created by this agent (already filtered from API)
+  const myPackages = packages;
+
+  // Get bookings for agent's packages (already fetched)
+  const myBookings = bookings;
 
   // Performance metrics
   const averageBookingValue =
@@ -80,10 +160,7 @@ export default function AgentDashboard() {
   const conversionRate =
     myPackages.length > 0 ? ((stats.totalBookings / myPackages.length) * 100).toFixed(1) : "0";
 
-  const averageRating =
-    myPackages.length > 0
-      ? (myPackages.reduce((sum, pkg) => sum + (pkg.rating || 0), 0) / myPackages.length).toFixed(1)
-      : "0.0";
+  const averageRating = stats.averageRating.toFixed(1);
 
   // Package performance
   const packageStats = myPackages
@@ -100,9 +177,19 @@ export default function AgentDashboard() {
     })
     .sort((a, b) => b.revenue - a.revenue);
 
-  const handleUpdateStatus = (bookingId: string, status: "confirmed" | "cancelled") => {
-    updateBookingStatus(bookingId, status);
-    toast.success(`Booking ${status === "confirmed" ? "confirmed" : "cancelled"} successfully!`);
+  const handleUpdateStatus = async (bookingId: string, status: "confirmed" | "cancelled") => {
+    try {
+      await bookingService.updateBookingStatus({ id: bookingId, status });
+      // Refresh bookings
+      const updatedBookings = bookings.map(b =>
+        b.id === bookingId ? { ...b, status } : b
+      );
+      setBookings(updatedBookings);
+      toast.success(`Booking ${status === "confirmed" ? "confirmed" : "cancelled"} successfully!`);
+    } catch (error) {
+      console.error("Failed to update booking status:", error);
+      toast.error("Failed to update booking status");
+    }
   };
 
   const getStatusIcon = (status: string) => {
@@ -127,6 +214,16 @@ export default function AgentDashboard() {
     }
   };
 
+  if (isLoading) {
+    return (
+      <MainLayout>
+        <div className="flex min-h-[50vh] items-center justify-center">
+          <Loader2 className="h-8 w-8 animate-spin text-primary" />
+        </div>
+      </MainLayout>
+    );
+  }
+
   return (
     <MainLayout>
       <section className="space-y-6 py-2 md:space-y-8 md:py-8 lg:py-12">
@@ -139,7 +236,7 @@ export default function AgentDashboard() {
             </p>
           </div>
           <Button
-            onClick={() => navigate("/agent/packages/new")}
+            onClick={() => navigate("/create-package")}
             className="bg-primary text-primary-foreground hover:bg-primary/90"
           >
             <Plus className="mr-2 h-4 w-4" />
@@ -225,7 +322,7 @@ export default function AgentDashboard() {
             </CardHeader>
             <CardContent className="flex flex-wrap gap-4">
               <Button
-                onClick={() => navigate("/agent/packages/new")}
+                onClick={() => navigate("/create-package")}
                 className="bg-primary text-primary-foreground hover:bg-primary/90"
               >
                 Create New Package
@@ -520,7 +617,7 @@ export default function AgentDashboard() {
             <CardTitle className="text-foreground">My Packages</CardTitle>
             <Button
               variant="outline"
-              onClick={() => navigate("/agent/packages")}
+              onClick={() => navigate("/manage-packages")}
               className="border-border"
             >
               View All

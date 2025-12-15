@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect } from "react";
+import { useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { format } from "date-fns";
 import { toast } from "sonner";
@@ -14,6 +14,7 @@ import {
   XCircle,
   AlertCircle,
   Phone,
+  Loader2,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -22,14 +23,22 @@ import { Separator } from "@/components/ui/separator";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import MainLayout from "@/layout/main-layout";
 import { useAuthStore } from "@/store/auth-store";
-import { useBookingStore } from "@/store/booking-store";
-import { useDestinationStore } from "@/store/destination-store";
-import { mockDestinations, mockPackages } from "@/data/mock-data";
 import { useSEO } from "@/hooks/use-seo";
+import { hasAuthToken, clearAuthStorage } from "@/lib/auth-storage";
+import * as bookingService from "@/services/booking.service";
+import * as packageService from "@/services/package.service";
+import * as destinationService from "@/services/destination.service";
+import type { Package, Booking, Destination } from "@/types";
 
 export default function TouristDashboard() {
   const navigate = useNavigate();
   const { user, isAuthenticated } = useAuthStore();
+
+  // API data states
+  const [isLoading, setIsLoading] = useState(true);
+  const [myBookings, setMyBookings] = useState<Booking[]>([]);
+  const [packages, setPackages] = useState<Package[]>([]);
+  const [destinations, setDestinations] = useState<Destination[]>([]);
 
   useSEO({
     title: "My Dashboard",
@@ -37,13 +46,20 @@ export default function TouristDashboard() {
       "Manage your travel bookings, view upcoming trips, and track your travel history with Wanderlust Inn.",
     keywords: "tourist dashboard, my bookings, travel management, trip history",
   });
-  const { getBookingsByTourist, updateBookingStatus } = useBookingStore();
-  const { destinations, packages, setDestinations, setPackages } = useDestinationStore();
 
-  const handleCancelBooking = (bookingId: string) => {
+  const handleCancelBooking = async (bookingId: string) => {
     if (window.confirm("Are you sure you want to cancel this booking?")) {
-      updateBookingStatus(bookingId, "cancelled");
-      toast.success("Booking cancelled successfully");
+      try {
+        await bookingService.cancelBooking(bookingId);
+        // Update local state
+        setMyBookings(prev => prev.map(b =>
+          b.id === bookingId ? { ...b, status: "cancelled" as const } : b
+        ));
+        toast.success("Booking cancelled successfully");
+      } catch (error) {
+        console.error("Failed to cancel booking:", error);
+        toast.error("Failed to cancel booking");
+      }
     }
   };
 
@@ -52,11 +68,56 @@ export default function TouristDashboard() {
       navigate("/sign-in");
       return;
     }
-    setDestinations(mockDestinations);
-    setPackages(mockPackages);
-  }, [isAuthenticated, user, navigate, setDestinations, setPackages]);
 
-  const myBookings = user ? getBookingsByTourist(user.id) : [];
+    if (!user?.id) {
+      console.error("User ID is missing");
+      toast.error("User session invalid. Please login again.");
+      navigate("/sign-in");
+      return;
+    }
+
+    // Check if token exists
+    if (!hasAuthToken()) {
+      console.error("Auth token is missing");
+      toast.error("Please login to continue.");
+      clearAuthStorage();
+      navigate("/sign-in");
+      return;
+    }
+
+    const fetchData = async () => {
+      setIsLoading(true);
+      try {
+        // Fetch tourist's bookings
+        const bookings = await bookingService.getBookingsByTourist(user.id);
+        setMyBookings(bookings);
+
+        // Fetch all packages and destinations for display
+        const [allPackages, allDestinations] = await Promise.all([
+          packageService.getAllPackages(),
+          destinationService.getAllDestinations(),
+        ]);
+        setPackages(allPackages);
+        setDestinations(allDestinations);
+      } catch (error) {
+        console.error("Failed to fetch dashboard data:", error);
+        const err = error as { response?: { status?: number } };
+        
+        // Check if it's an authentication error
+        if (err.response?.status === 401) {
+          toast.error("Session expired. Please login again.");
+          clearAuthStorage();
+          navigate("/sign-in");
+        } else {
+          toast.error("Failed to load dashboard data. Please try again.");
+        }
+      } finally {
+        setIsLoading(false);
+      }
+    };
+
+    fetchData();
+  }, [isAuthenticated, user, navigate]);
 
   const getStatusIcon = (status: string) => {
     switch (status) {
@@ -86,6 +147,16 @@ export default function TouristDashboard() {
     pending: myBookings.filter((b) => b.status === "pending").length,
     cancelled: myBookings.filter((b) => b.status === "cancelled").length,
   };
+
+  if (isLoading) {
+    return (
+      <MainLayout>
+        <div className="flex min-h-[50vh] items-center justify-center">
+          <Loader2 className="h-8 w-8 animate-spin text-primary" />
+        </div>
+      </MainLayout>
+    );
+  }
 
   return (
     <MainLayout>
@@ -299,16 +370,16 @@ export default function TouristDashboard() {
                                   </Button>
                                   {(booking.paymentStatus === "unpaid" ||
                                     booking.paymentStatus === "rejected") && (
-                                    <Button
-                                      size="sm"
-                                      onClick={() =>
-                                        navigate(`/booking-success?bookingId=${booking.id}`)
-                                      }
-                                      className="bg-green-600 hover:bg-green-700"
-                                    >
-                                      Upload Payment
-                                    </Button>
-                                  )}
+                                      <Button
+                                        size="sm"
+                                        onClick={() =>
+                                          navigate(`/booking-success?bookingId=${booking.id}`)
+                                        }
+                                        className="bg-green-600 hover:bg-green-700"
+                                      >
+                                        Upload Payment
+                                      </Button>
+                                    )}
                                   {booking.status === "pending" &&
                                     booking.paymentStatus !== "unpaid" && (
                                       <Button
@@ -332,25 +403,25 @@ export default function TouristDashboard() {
 
                   {myBookings.filter((b) => status === "all" || b.status === status).length ===
                     0 && (
-                    <Card className="border-border p-12 text-center">
-                      <div className="bg-muted mx-auto mb-4 flex h-20 w-20 items-center justify-center rounded-full">
-                        <PackageIcon className="text-muted-foreground h-10 w-10" />
-                      </div>
-                      <h3 className="text-foreground mb-2 text-lg font-semibold">
-                        No {status !== "all" && status} bookings yet
-                      </h3>
-                      <p className="text-muted-foreground mb-4 text-sm">
-                        {status === "all"
-                          ? "Start your adventure by browsing our amazing travel packages"
-                          : `You don't have any ${status} bookings at the moment`}
-                      </p>
-                      {status === "all" && (
-                        <Button onClick={() => navigate("/packages")} className="mt-2">
-                          Explore Packages
-                        </Button>
-                      )}
-                    </Card>
-                  )}
+                      <Card className="border-border p-12 text-center">
+                        <div className="bg-muted mx-auto mb-4 flex h-20 w-20 items-center justify-center rounded-full">
+                          <PackageIcon className="text-muted-foreground h-10 w-10" />
+                        </div>
+                        <h3 className="text-foreground mb-2 text-lg font-semibold">
+                          No {status !== "all" && status} bookings yet
+                        </h3>
+                        <p className="text-muted-foreground mb-4 text-sm">
+                          {status === "all"
+                            ? "Start your adventure by browsing our amazing travel packages"
+                            : `You don't have any ${status} bookings at the moment`}
+                        </p>
+                        {status === "all" && (
+                          <Button onClick={() => navigate("/packages")} className="mt-2">
+                            Explore Packages
+                          </Button>
+                        )}
+                      </Card>
+                    )}
                 </TabsContent>
               ))}
             </Tabs>

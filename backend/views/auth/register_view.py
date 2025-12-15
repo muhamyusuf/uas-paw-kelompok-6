@@ -13,7 +13,7 @@ class UserRole(str, Enum):
     tourist = "tourist"
 
 
-class FromRequest(BaseModel):
+class RegisterRequest(BaseModel):
     name: str
     email: str
     password: str
@@ -24,7 +24,7 @@ class FromRequest(BaseModel):
 def register(request):
     # request validation
     try:
-        req_data = FromRequest(**request.json_body)
+        req_data = RegisterRequest(**request.json_body)
     except ValidationError as err:
         return Response(json_body={"error": str(err.errors())}, status=400)
 

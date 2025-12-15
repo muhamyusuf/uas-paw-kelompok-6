@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useState, useMemo } from "react";
-import { Search, Phone, Loader2 } from "lucide-react";
+import { Search, Phone, Loader2, Heart } from "lucide-react";
 import { useNavigate } from "react-router-dom";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -18,15 +18,23 @@ import { Badge } from "@/components/ui/badge";
 import { PackageCardSkeleton } from "@/components/ui/skeleton";
 import MainLayout from "@/layout/main-layout";
 import { useDestinationStore } from "@/store/destination-store";
-import { mockDestinations, mockPackages } from "@/data/mock-data";
+import { useWishlistStore } from "@/store/wishlist-store";
+import { useAuthStore } from "@/store/auth-store";
+import * as packageService from "@/services/package.service";
+import * as destinationService from "@/services/destination.service";
 import type { Destination } from "@/types";
 import { useSEO } from "@/hooks/use-seo";
 import { useDebounce } from "@/hooks/use-debounce";
 import { useUrlParams } from "@/hooks/use-url-params";
+import { toast } from "sonner";
+import { getImageUrl } from "@/lib/image-utils";
+import { getWhatsAppLink } from "@/lib/formatters";
 
 export default function PackagesPage() {
   const navigate = useNavigate();
   const { destinations, packages, setDestinations, setPackages } = useDestinationStore();
+  const { addToWishlist, removeFromWishlist, isInWishlist } = useWishlistStore();
+  const { isAuthenticated } = useAuthStore();
   const { getParam, setParams } = useUrlParams();
 
   const [searchQuery, setSearchQuery] = useState(getParam("search", ""));
@@ -51,17 +59,28 @@ export default function PackagesPage() {
   });
 
   useEffect(() => {
-    // Using Promise to avoid setState in effect
-    Promise.resolve().then(() => {
+    const fetchData = async () => {
       setIsLoading(true);
-      // Simulate loading delay
-      setTimeout(() => {
-        setDestinations(mockDestinations);
-        setPackages(mockPackages);
+
+      try {
+        const [packagesData, destinationsData] = await Promise.all([
+          packageService.getAllPackages(),
+          destinationService.getAllDestinations(),
+        ]);
+
+        setPackages(packagesData);
+        setDestinations(destinationsData);
+      } catch (err) {
+        console.error("Failed to fetch data:", err);
+        toast.error("Failed to load packages");
+      } finally {
         setIsLoading(false);
-      }, 500);
-    });
-  }, [setDestinations, setPackages]);
+      }
+    };
+
+    fetchData();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
   // Update URL params when filters change
   useEffect(() => {
@@ -139,6 +158,24 @@ export default function PackagesPage() {
 
   const getDestinationById = (id: string): Destination | undefined => {
     return destinations.find((d) => d.id === id);
+  };
+
+  const handleToggleWishlist = (e: React.MouseEvent, packageId: string) => {
+    e.stopPropagation();
+    
+    if (!isAuthenticated) {
+      toast.error("Please sign in to add to wishlist");
+      navigate("/sign-in");
+      return;
+    }
+
+    if (isInWishlist(packageId)) {
+      removeFromWishlist(packageId);
+      toast.success("Removed from wishlist");
+    } else {
+      addToWishlist(packageId);
+      toast.success("Added to wishlist");
+    }
   };
 
   return (
@@ -262,7 +299,7 @@ export default function PackagesPage() {
                     <div className="relative">
                       <AspectRatio ratio={4 / 3}>
                         <img
-                          src={pkg.images[0]}
+                          src={getImageUrl(pkg.images[0])}
                           alt={pkg.name}
                           className="h-full w-full rounded-lg object-cover transition-all duration-500 ease-in-out"
                         />
@@ -277,6 +314,17 @@ export default function PackagesPage() {
                           Top Rated
                         </Badge>
                       )}
+                      {/* Wishlist Button */}
+                      <Button
+                        variant="outline"
+                        size="icon"
+                        className={`absolute top-4 right-4 h-8 w-8 rounded-full bg-background/90 hover:bg-background ${
+                          isInWishlist(pkg.id) ? "border-red-500 text-red-500" : ""
+                        }`}
+                        onClick={(e) => handleToggleWishlist(e, pkg.id)}
+                      >
+                        <Heart className={`h-4 w-4 ${isInWishlist(pkg.id) ? "fill-current" : ""}`} />
+                      </Button>
                     </div>
 
                     <CardContent className="p-2">
@@ -291,10 +339,16 @@ export default function PackagesPage() {
                             </p>
                           )}
                           {pkg.contactPhone && (
-                            <div className="text-muted-foreground mt-1 flex items-center gap-1 text-xs">
+                            <a
+                              href={getWhatsAppLink(pkg.contactPhone)}
+                              target="_blank"
+                              rel="noopener noreferrer"
+                              onClick={(e) => e.stopPropagation()}
+                              className="text-primary mt-1 flex items-center gap-1 text-xs hover:underline"
+                            >
                               <Phone className="h-3 w-3" />
                               <span>{pkg.contactPhone}</span>
-                            </div>
+                            </a>
                           )}
                         </div>
 
@@ -302,7 +356,7 @@ export default function PackagesPage() {
                           <span className="text-muted-foreground">
                             {pkg.duration} {pkg.duration === 1 ? "Day" : "Days"}
                           </span>
-                          {pkg.rating && (
+                          {pkg.rating && pkg.reviewsCount && pkg.reviewsCount > 0 && (
                             <div className="flex items-center gap-1">
                               <span className="text-foreground font-semibold">⭐ {pkg.rating}</span>
                               <span className="text-muted-foreground">({pkg.reviewsCount})</span>

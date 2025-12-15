@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { Button } from "@/components/ui/button";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
@@ -21,46 +21,78 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table";
-import { CheckCircle, XCircle, Eye, Clock, DollarSign } from "lucide-react";
+import { CheckCircle, XCircle, Eye, Clock, DollarSign, Loader2 } from "lucide-react";
 import { useBookingStore } from "@/store/booking-store";
 import { useDestinationStore } from "@/store/destination-store";
 import { format } from "date-fns";
 import { toast } from "sonner";
+import { API_BASE_URL } from "@/services/api";
 import type { Booking } from "@/types";
 
 export function PaymentVerification() {
-  const { verifyPayment, rejectPayment, getPendingPaymentVerifications } = useBookingStore();
+  const { 
+    pendingPayments, 
+    isLoading, 
+    fetchPendingPayments, 
+    verifyPayment, 
+    rejectPayment 
+  } = useBookingStore();
   const { packages } = useDestinationStore();
 
   const [selectedBooking, setSelectedBooking] = useState<Booking | null>(null);
   const [rejectReason, setRejectReason] = useState("");
   const [isRejectDialogOpen, setIsRejectDialogOpen] = useState(false);
+  const [isProcessing, setIsProcessing] = useState(false);
 
-  const pendingPayments = getPendingPaymentVerifications();
+  useEffect(() => {
+    fetchPendingPayments();
+  }, [fetchPendingPayments]);
 
-  const handleVerify = (bookingId: string) => {
-    verifyPayment(bookingId);
-    toast.success("Payment verified successfully!");
-    setSelectedBooking(null);
+  const handleVerify = async (bookingId: string) => {
+    setIsProcessing(true);
+    try {
+      await verifyPayment(bookingId);
+      toast.success("Payment verified successfully!");
+      setSelectedBooking(null);
+    } catch {
+      toast.error("Failed to verify payment");
+    } finally {
+      setIsProcessing(false);
+    }
   };
 
-  const handleReject = () => {
+  const handleReject = async () => {
     if (!selectedBooking) return;
     if (!rejectReason.trim()) {
       toast.error("Please provide a rejection reason");
       return;
     }
 
-    rejectPayment(selectedBooking.id, rejectReason);
-    toast.success("Payment rejected");
-    setIsRejectDialogOpen(false);
-    setSelectedBooking(null);
-    setRejectReason("");
+    setIsProcessing(true);
+    try {
+      await rejectPayment(selectedBooking.id, rejectReason);
+      toast.success("Payment rejected");
+      setIsRejectDialogOpen(false);
+      setSelectedBooking(null);
+      setRejectReason("");
+    } catch {
+      toast.error("Failed to reject payment");
+    } finally {
+      setIsProcessing(false);
+    }
   };
 
   const getPackageName = (packageId: string) => {
     const pkg = packages.find((p) => p.id === packageId);
     return pkg?.name || "Unknown Package";
+  };
+
+  const getPaymentProofUrl = (paymentProofUrl: string | undefined) => {
+    if (!paymentProofUrl) return null;
+    // If it's already a full URL, return as is
+    if (paymentProofUrl.startsWith('http')) return paymentProofUrl;
+    // Otherwise, prepend backend base URL
+    return `${API_BASE_URL}${paymentProofUrl}`;
   };
 
   return (
@@ -78,7 +110,12 @@ export function PaymentVerification() {
         </div>
       </CardHeader>
       <CardContent>
-        {pendingPayments.length === 0 ? (
+        {isLoading ? (
+          <div className="py-12 text-center">
+            <Loader2 className="text-muted-foreground mx-auto mb-4 h-12 w-12 animate-spin" />
+            <p className="text-muted-foreground">Loading pending payments...</p>
+          </div>
+        ) : pendingPayments.length === 0 ? (
           <div className="py-12 text-center">
             <CheckCircle className="text-muted-foreground mx-auto mb-4 h-12 w-12" />
             <p className="text-muted-foreground">No pending payment verifications</p>
@@ -132,10 +169,18 @@ export function PaymentVerification() {
                             </DialogHeader>
                             <div className="mt-4">
                               <img
-                                src={booking.paymentProofUrl}
+                                src={getPaymentProofUrl(booking.paymentProofUrl) || ''}
                                 alt="Payment proof"
                                 className="h-auto w-full rounded-lg border"
+                                onError={(e) => {
+                                  const target = e.target as HTMLImageElement;
+                                  target.src = 'data:image/svg+xml,<svg xmlns="http://www.w3.org/2000/svg" width="400" height="300"><rect fill="%23f0f0f0" width="400" height="300"/><text x="50%" y="50%" dominant-baseline="middle" text-anchor="middle" fill="%23999">Failed to load image</text></svg>';
+                                  console.error('Failed to load payment proof:', booking.paymentProofUrl);
+                                }}
                               />
+                            </div>
+                            <div className="mt-2 text-xs text-muted-foreground">
+                              Image URL: {getPaymentProofUrl(booking.paymentProofUrl)}
                             </div>
                           </DialogContent>
                         </Dialog>
@@ -149,8 +194,13 @@ export function PaymentVerification() {
                           size="sm"
                           onClick={() => handleVerify(booking.id)}
                           className="bg-green-600 hover:bg-green-700"
+                          disabled={isProcessing}
                         >
-                          <CheckCircle className="mr-1 h-4 w-4" />
+                          {isProcessing ? (
+                            <Loader2 className="mr-1 h-4 w-4 animate-spin" />
+                          ) : (
+                            <CheckCircle className="mr-1 h-4 w-4" />
+                          )}
                           Verify
                         </Button>
                         <Dialog
@@ -203,7 +253,10 @@ export function PaymentVerification() {
                               >
                                 Cancel
                               </Button>
-                              <Button variant="destructive" onClick={handleReject}>
+                              <Button variant="destructive" onClick={handleReject} disabled={isProcessing}>
+                                {isProcessing ? (
+                                  <Loader2 className="mr-1 h-4 w-4 animate-spin" />
+                                ) : null}
                                 Confirm Rejection
                               </Button>
                             </DialogFooter>

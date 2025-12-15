@@ -1,4 +1,4 @@
-import { useState, useMemo } from "react";
+import { useState, useMemo, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import { useDestinationStore } from "@/store/destination-store";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
@@ -6,12 +6,35 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
 import { Search, MapPin, Package, ArrowRight } from "lucide-react";
+import * as destinationService from "@/services/destination.service";
+import * as packageService from "@/services/package.service";
+import { toast } from "sonner";
+import { getImageUrl } from "@/lib/image-utils";
 
 export default function DestinationsPage() {
   const navigate = useNavigate();
-  const { destinations, packages } = useDestinationStore();
+  const { destinations, packages, setDestinations, setPackages } = useDestinationStore();
   const [searchQuery, setSearchQuery] = useState("");
   const [selectedCountry, setSelectedCountry] = useState<string>("all");
+
+  // Fetch data from API
+  useEffect(() => {
+    const fetchData = async () => {
+      try {
+        const [destinationsData, packagesData] = await Promise.all([
+          destinationService.getAllDestinations(),
+          packageService.getAllPackages(),
+        ]);
+        setDestinations(destinationsData);
+        setPackages(packagesData);
+      } catch (err) {
+        console.error("Failed to fetch data:", err);
+        toast.error("Failed to load destinations");
+      }
+    };
+    fetchData();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
   // Get unique countries
   const countries = useMemo(() => {
@@ -126,7 +149,7 @@ export default function DestinationsPage() {
                   {/* Destination Image */}
                   <div className="relative h-48 overflow-hidden">
                     <img
-                      src={destination.photoUrl}
+                      src={getImageUrl(destination.photoUrl)}
                       alt={destination.name}
                       className="h-full w-full object-cover transition-transform duration-300 hover:scale-110"
                     />

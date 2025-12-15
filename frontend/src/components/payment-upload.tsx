@@ -14,6 +14,7 @@ import {
   Image as ImageIcon,
 } from "lucide-react";
 import { toast } from "sonner";
+import { API_BASE_URL } from "@/services/api";
 
 interface PaymentUploadProps {
   bookingId: string;
@@ -32,7 +33,17 @@ export function PaymentUpload({
   onUpload,
 }: PaymentUploadProps) {
   const [selectedFile, setSelectedFile] = useState<File | null>(null);
-  const [previewUrl, setPreviewUrl] = useState<string | null>(paymentProofUrl || null);
+  
+  // Convert relative URL to full URL
+  const getFullProofUrl = (url: string | undefined) => {
+    if (!url) return null;
+    if (url.startsWith('http')) return url;
+    return `${API_BASE_URL}${url}`;
+  };
+  
+  const [previewUrl, setPreviewUrl] = useState<string | null>(
+    getFullProofUrl(paymentProofUrl)
+  );
   const [isUploading, setIsUploading] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
@@ -64,7 +75,7 @@ export function PaymentUpload({
 
   const handleRemove = () => {
     setSelectedFile(null);
-    setPreviewUrl(paymentProofUrl || null);
+    setPreviewUrl(getFullProofUrl(paymentProofUrl));
     if (fileInputRef.current) {
       fileInputRef.current.value = "";
     }
@@ -185,6 +196,11 @@ export function PaymentUpload({
                   src={previewUrl}
                   alt="Payment proof preview"
                   className="h-48 w-full rounded-lg border object-cover"
+                  onError={(e) => {
+                    const target = e.target as HTMLImageElement;
+                    target.src = 'data:image/svg+xml,<svg xmlns="http://www.w3.org/2000/svg" width="400" height="200"><rect fill="%23f0f0f0" width="400" height="200"/><text x="50%" y="50%" dominant-baseline="middle" text-anchor="middle" fill="%23999">Failed to load image</text></svg>';
+                    console.error('Failed to load payment proof preview');
+                  }}
                 />
                 {selectedFile && (
                   <Button

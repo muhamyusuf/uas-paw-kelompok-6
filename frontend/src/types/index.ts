@@ -51,9 +51,18 @@ export interface Review {
   id: string;
   packageId: string;
   touristId: string;
+  bookingId?: string;
   rating: number;
   comment: string;
   createdAt: string;
+  tourist?: {
+    id: string;
+    name: string;
+  };
+  package?: {
+    id: string;
+    name: string;
+  };
 }
 
 export interface BookingFormData {

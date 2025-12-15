@@ -8,11 +8,11 @@ import MainLayout from "@/layout/main-layout";
 import { useAuthStore } from "@/store/auth-store";
 import { useDestinationStore } from "@/store/destination-store";
 import { packageSchema } from "@/lib/validations";
-import { mockDestinations } from "@/data/mock-data";
+import * as destinationService from "@/services/destination.service";
+import * as packageService from "@/services/package.service";
 import { PackageForm } from "@/components/package-form";
 import { useFormValidation } from "@/hooks/use-form-validation";
-import { useImageArray } from "@/hooks/use-image-array";
-import type { Package } from "@/types";
+import { useFileArray } from "@/hooks/use-file-array";
 import { useSEO } from "@/hooks/use-seo";
 
 export default function CreatePackagePage() {
@@ -39,15 +39,30 @@ export default function CreatePackagePage() {
 
   const [isSubmitting, setIsSubmitting] = useState(false);
   const { errors, validate } = useFormValidation(packageSchema);
-  const { images, addImage, removeImage, updateImage } = useImageArray();
+  const { files: imageFiles, previews: imagePreviews, addFiles, removeFile, canAddMore } = useFileArray(10);
 
   useEffect(() => {
     if (!isAuthenticated || user?.role !== "agent") {
       navigate("/sign-in");
       return;
     }
-    setDestinations(mockDestinations);
-  }, [isAuthenticated, user, navigate, setDestinations]);
+
+    // Fetch destinations from API
+    const fetchDestinations = async () => {
+      try {
+        const data = await destinationService.getAllDestinations();
+        setDestinations(data);
+      } catch (err) {
+        console.error("Failed to fetch destinations:", err);
+        toast.error("Failed to load destinations");
+      }
+    };
+
+    if (destinations.length === 0) {
+      fetchDestinations();
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [isAuthenticated, user, navigate, destinations.length]);
 
   const handleFieldChange = (field: string, value: string) => {
     setFormData((prev) => ({ ...prev, [field]: value }));
@@ -56,22 +71,26 @@ export default function CreatePackagePage() {
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
 
+    // Validate that at least 1 image is uploaded
+    if (imageFiles.length === 0) {
+      toast.error("Please upload at least 1 image");
+      return;
+    }
+
     const dataToValidate = {
       ...formData,
       duration: Number(formData.duration),
       price: Number(formData.price),
       maxTravelers: Number(formData.maxTravelers),
-      images: images.filter((img) => img.trim() !== ""),
+      images: imageFiles.map((f) => f.name), // For validation only
     };
 
     if (!validate(dataToValidate)) return;
 
     setIsSubmitting(true);
 
-    setTimeout(() => {
-      const newPackage: Package = {
-        id: `pkg-${Date.now()}`,
-        agentId: user!.id,
+    try {
+      const newPackage = await packageService.createPackage({
         destinationId: dataToValidate.destinationId,
         name: dataToValidate.name,
         duration: dataToValidate.duration,
@@ -79,16 +98,18 @@ export default function CreatePackagePage() {
         itinerary: dataToValidate.itinerary,
         maxTravelers: dataToValidate.maxTravelers,
         contactPhone: dataToValidate.contactPhone,
-        images: dataToValidate.images,
-        rating: 0,
-        reviewsCount: 0,
-      };
+        images: imageFiles, // Send actual File objects
+      });
 
       addPackage(newPackage);
-      setIsSubmitting(false);
       toast.success("Package created successfully!");
       navigate("/manage-packages");
-    }, 1000);
+    } catch (error) {
+      console.error("Failed to create package:", error);
+      toast.error("Failed to create package. Please try again.");
+    } finally {
+      setIsSubmitting(false);
+    }
   };
 
   return (
@@ -115,13 +136,14 @@ export default function CreatePackagePage() {
                 <CardContent>
                   <PackageForm
                     formData={formData}
-                    images={images}
+                    imageFiles={imageFiles}
+                    imagePreviews={imagePreviews}
                     errors={errors}
                     destinations={destinations}
                     onFieldChange={handleFieldChange}
-                    onImageAdd={addImage}
-                    onImageRemove={removeImage}
-                    onImageChange={updateImage}
+                    onFilesAdd={addFiles}
+                    onFileRemove={removeFile}
+                    canAddMoreFiles={canAddMore}
                   />
                 </CardContent>
               </Card>
