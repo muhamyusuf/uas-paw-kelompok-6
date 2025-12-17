@@ -1,0 +1,11 @@
+#booking routes
+def include_bookings_routes(config):
+    config.add_route("bookings", "/api/bookings")
+    config.add_route("booking_detail", "/api/bookings/{id}")
+    config.add_route("booking_status", "/api/bookings/{id}/status")
+    config.add_route("booking_payment_upload", "/api/bookings/{id}/payment-proof")
+    config.add_route("booking_payment_verify", "/api/bookings/{id}/payment-verify")
+    config.add_route("booking_payment_reject", "/api/bookings/{id}/payment-reject")
+    config.add_route("booking_by_tourist", "/api/bookings/tourist/{touristId}")
+    config.add_route("booking_by_package", "/api/bookings/package/{packageId}")
+    config.add_route("booking_payment_pending", "/api/bookings/payment/pending")
