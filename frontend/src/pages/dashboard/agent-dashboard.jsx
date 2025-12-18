@@ -17,6 +17,7 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { PaymentVerification } from "@/components/payment-verification";
+import { QRISManagement } from "@/components/qris-management";
 import {
   Table,
   TableBody,
@@ -509,6 +510,9 @@ export default function AgentDashboard() {
 
         {/* Payment Verification */}
         <PaymentVerification />
+
+        {/* QRIS Management - TAMBAHKAN INI */}
+        <QRISManagement />
 
         {/* Bookings Management */}
         <Card className="border-border">
