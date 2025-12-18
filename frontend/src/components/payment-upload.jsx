@@ -5,7 +5,7 @@ import { Label } from "@/components/ui/label";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { Badge } from "@/components/ui/badge";
-import { Upload, X, CheckCircle, AlertCircle, Clock, QrCode, Image } from "lucide-react";
+import { Upload, X, CheckCircle, AlertCircle, Clock, QrCode, Image, Loader2 } from "lucide-react";
 import { toast } from "sonner";
 import { API_BASE_URL } from "@/services/api";
 
@@ -15,17 +15,22 @@ export function PaymentUpload({
   paymentProofUrl,
   paymentRejectionReason,
   onUpload,
+  qrisImageUrl,
+  qrisAmount,
+  isGeneratingQr = false,
+  onGenerateQr = () => {},
+  qrisError = null,
 }) {
   const [selectedFile, setSelectedFile] = useState(null);
 
   // Convert relative URL to full URL
-  const getFullProofUrl = (url) => {
+  const getFullUrl = (url) => {
     if (!url) return null;
     if (url.startsWith("http")) return url;
     return `${API_BASE_URL}${url}`;
   };
 
-  const [previewUrl, setPreviewUrl] = useState(getFullProofUrl(paymentProofUrl));
+  const [previewUrl, setPreviewUrl] = useState(getFullUrl(paymentProofUrl));
   const [isUploading, setIsUploading] = useState(false);
   const fileInputRef = useRef(null);
 
@@ -57,7 +62,7 @@ export function PaymentUpload({
 
   const handleRemove = () => {
     setSelectedFile(null);
-    setPreviewUrl(getFullProofUrl(paymentProofUrl));
+    setPreviewUrl(getFullUrl(paymentProofUrl));
     if (fileInputRef.current) {
       fileInputRef.current.value = "";
     }
@@ -126,7 +131,7 @@ export function PaymentUpload({
         <div className="bg-muted rounded-lg p-4">
           <div className="flex items-center justify-between">
             <span className="text-muted-foreground text-sm font-medium">Total Amount</span>
-            <span className="text-2xl font-bold">${totalPrice.toFixed(2)}</span>
+            <span className="text-2xl font-bold">${Number(totalPrice || 0).toFixed(2)}</span>
           </div>
         </div>
 
@@ -136,17 +141,70 @@ export function PaymentUpload({
             <QrCode className="h-5 w-5" />
             <Label>Scan QRIS Code</Label>
           </div>
-          <div className="flex justify-center rounded-lg border-2 border-dashed p-6">
-            <div className="space-y-2 text-center">
-              <div className="bg-muted mx-auto flex h-48 w-48 items-center justify-center rounded-lg">
-                <QrCode className="text-muted-foreground h-24 w-24" />
+          <div className="rounded-lg border-2 border-dashed p-6">
+            {qrisError ? (
+              <div className="bg-destructive/10 border-destructive text-destructive rounded-md border p-3 text-center text-sm">
+                {qrisError}
               </div>
-              <p className="text-muted-foreground text-sm">
-                Scan this QR code with your mobile banking app
-              </p>
-              <p className="text-muted-foreground text-xs">
-                Demo QRIS - In production, this would be a real QR code
-              </p>
+            ) : null}
+            {isGeneratingQr ? (
+              <div className="flex flex-col items-center justify-center space-y-2 text-muted-foreground">
+                <Loader2 className="h-6 w-6 animate-spin" />
+                <p className="text-sm">Generating QR code...</p>
+              </div>
+            ) : qrisImageUrl ? (
+              <div className="space-y-2 text-center">
+                <div className="bg-muted mx-auto flex h-48 w-48 items-center justify-center rounded-lg">
+                  <img
+                    src={getFullUrl(qrisImageUrl)}
+                    alt="QRIS payment code"
+                    className="h-48 w-48 rounded-lg object-contain"
+                    onError={(e) => {
+                      const target = e.target;
+                      target.src =
+                        'data:image/svg+xml,<svg xmlns="http://www.w3.org/2000/svg" width="300" height="300"><rect fill="%23f0f0f0" width="300" height="300"/><text x="50%" y="50%" dominant-baseline="middle" text-anchor="middle" fill="%23999">QR not available</text></svg>';
+                      console.error("Failed to load generated QR:", qrisImageUrl);
+                    }}
+                  />
+                </div>
+                <p className="text-muted-foreground text-sm">
+                  Scan this QR code with your mobile banking app
+                </p>
+                {qrisAmount ? (
+                  <p className="text-muted-foreground text-xs">
+                    Total to pay: <span className="font-semibold text-foreground">{qrisAmount}</span>
+                  </p>
+                ) : null}
+              </div>
+            ) : (
+              <div className="space-y-2 text-center">
+                <div className="bg-muted mx-auto flex h-48 w-48 items-center justify-center rounded-lg">
+                  <QrCode className="text-muted-foreground h-24 w-24" />
+                </div>
+                <p className="text-muted-foreground text-sm">
+                  Generate a QRIS code to complete your payment
+                </p>
+              </div>
+            )}
+            <div className="mt-4 flex justify-center">
+              <Button
+                type="button"
+                variant="secondary"
+                onClick={onGenerateQr}
+                disabled={isGeneratingQr}
+              >
+                {isGeneratingQr ? (
+                  <>
+                    <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                    Generating...
+                  </>
+                ) : (
+                  <>
+                    <QrCode className="mr-2 h-4 w-4" />
+                    {qrisImageUrl ? "Regenerate QR" : "Generate QR"}
+                  </>
+                )}
+              </Button>
             </div>
           </div>
         </div>
@@ -263,4 +321,9 @@ PaymentUpload.propTypes = {
   paymentProofUrl: PropTypes.string,
   paymentRejectionReason: PropTypes.string,
   onUpload: PropTypes.func.isRequired,
+  qrisImageUrl: PropTypes.string,
+  qrisAmount: PropTypes.oneOfType([PropTypes.number, PropTypes.string]),
+  isGeneratingQr: PropTypes.bool,
+  onGenerateQr: PropTypes.func,
+  qrisError: PropTypes.string,
 };
