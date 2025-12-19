@@ -12,8 +12,8 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import { Badge } from "@/components/ui/badge";
 import { PackageCardSkeleton } from "@/components/ui/skeleton";
+import { Pagination, PaginationInfo } from "@/components/pagination";
 import MainLayout from "@/layout/main-layout";
 import { useDestinationStore } from "@/store/destination-store";
 import { useWishlistStore } from "@/store/wishlist-store";
@@ -146,11 +146,6 @@ export default function PackagesPage() {
   const endIndex = startIndex + ITEMS_PER_PAGE;
   const paginatedPackages = filteredPackages.slice(startIndex, endIndex);
 
-  const handlePageChange = (page) => {
-    setCurrentPage(page);
-    window.scrollTo({ top: 0, behavior: "smooth" });
-  };
-
   const getDestinationById = (id) => {
     return destinations.find((d) => d.id === id);
   };
@@ -261,17 +256,14 @@ export default function PackagesPage() {
         </div>
 
         {/* Results Count */}
-        <div className="flex items-center justify-between">
-          <p className="text-muted-foreground text-sm">
-            Showing {startIndex + 1}-{Math.min(endIndex, filteredPackages.length)} of{" "}
-            {filteredPackages.length} packages
-          </p>
-          {totalPages > 1 && (
-            <p className="text-muted-foreground text-sm">
-              Page {currentPage} of {totalPages}
-            </p>
-          )}
-        </div>
+        <PaginationInfo
+          currentPage={currentPage}
+          totalPages={totalPages}
+          startIndex={startIndex}
+          endIndex={endIndex}
+          totalItems={filteredPackages.length}
+          itemName="packages"
+        />
 
         {/* Package Grid */}
         {isLoading ? (
@@ -304,14 +296,13 @@ export default function PackagesPage() {
                           ${pkg.price.toLocaleString()}
                         </span>
                       </div>
-                      
+
                       {/* Wishlist Button */}
                       <Button
                         variant="outline"
                         size="icon"
-                        className={`bg-background/90 hover:bg-background absolute top-4 right-4 h-8 w-8 rounded-full ${
-                          isInWishlist(pkg.id) ? "border-red-500 text-red-500" : ""
-                        }`}
+                        className={`bg-background/90 hover:bg-background absolute top-4 right-4 h-8 w-8 rounded-full ${isInWishlist(pkg.id) ? "border-red-500 text-red-500" : ""
+                          }`}
                         onClick={(e) => handleToggleWishlist(e, pkg.id)}
                       >
                         <Heart
@@ -349,7 +340,7 @@ export default function PackagesPage() {
                           <span className="text-muted-foreground">
                             {pkg.duration} {pkg.duration === 1 ? "Day" : "Days"}
                           </span>
-                         
+
                         </div>
 
                         <Button className="bg-primary text-primary-foreground hover:bg-primary/90 w-full">
@@ -363,57 +354,12 @@ export default function PackagesPage() {
             </div>
 
             {/* Pagination */}
-            {totalPages > 1 && (
-              <div className="flex items-center justify-center gap-2 pt-4">
-                <Button
-                  variant="outline"
-                  size="sm"
-                  onClick={() => handlePageChange(currentPage - 1)}
-                  disabled={currentPage === 1}
-                >
-                  Previous
-                </Button>
-
-                <div className="flex gap-1">
-                  {Array.from({ length: totalPages }, (_, i) => i + 1).map((page) => {
-                    // Show first page, last page, current page, and pages around current
-                    if (
-                      page === 1 ||
-                      page === totalPages ||
-                      (page >= currentPage - 1 && page <= currentPage + 1)
-                    ) {
-                      return (
-                        <Button
-                          key={page}
-                          variant={currentPage === page ? "default" : "outline"}
-                          size="sm"
-                          onClick={() => handlePageChange(page)}
-                          className="min-w-10"
-                        >
-                          {page}
-                        </Button>
-                      );
-                    } else if (page === currentPage - 2 || page === currentPage + 2) {
-                      return (
-                        <span key={page} className="px-2">
-                          ...
-                        </span>
-                      );
-                    }
-                    return null;
-                  })}
-                </div>
-
-                <Button
-                  variant="outline"
-                  size="sm"
-                  onClick={() => handlePageChange(currentPage + 1)}
-                  disabled={currentPage === totalPages}
-                >
-                  Next
-                </Button>
-              </div>
-            )}
+            <Pagination
+              currentPage={currentPage}
+              totalPages={totalPages}
+              onPageChange={setCurrentPage}
+              className="pt-4"
+            />
           </>
         ) : (
           <Card className="border-border p-12 text-center">

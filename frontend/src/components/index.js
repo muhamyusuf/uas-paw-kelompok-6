@@ -45,3 +45,9 @@ export { StatsCard, StatsGrid } from "./stats-card";
 
 // Dialogs
 export { ConfirmDialog, DeleteDialog, CancelBookingDialog } from "./confirm-dialog";
+
+// Info Items
+export { InfoItem, CompactInfoItem } from "./info-item";
+
+// Pagination
+export { Pagination, PaginationInfo } from "./pagination";

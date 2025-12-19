@@ -43,6 +43,11 @@ export const BOOKING_STATUS = {
 };
 
 /**
+ * All available booking statuses
+ */
+export const BOOKING_STATUSES = ["pending", "confirmed", "cancelled", "completed"];
+
+/**
  * Get status icon component
  * @param {string} status - Booking status
  * @returns {React.ComponentType} Icon component
@@ -84,10 +89,32 @@ export const getStatusConfig = (status) => {
 /**
  * Check if booking can be cancelled
  * @param {string} status - Booking status
+ * @param {Date} [travelDate] - Optional travel date for additional validation
  * @returns {boolean}
  */
-export const canCancelBooking = (status) => {
-  return ["pending", "payment_pending"].includes(status);
+export const canCancelBooking = (status, travelDate) => {
+  const allowedStatuses = ["pending", "confirmed", "payment_pending"];
+  if (!allowedStatuses.includes(status)) {
+    return false;
+  }
+
+  // If travel date is provided, check if it's in the future
+  if (travelDate) {
+    const now = new Date();
+    const travel = typeof travelDate === "string" ? new Date(travelDate) : travelDate;
+    return travel > now;
+  }
+
+  return true;
+};
+
+/**
+ * Check if booking can be confirmed by agent
+ * @param {string} status - Booking status
+ * @returns {boolean}
+ */
+export const canConfirmBooking = (status) => {
+  return status === "pending";
 };
 
 /**
@@ -102,8 +129,11 @@ export const canReviewBooking = (status) => {
 /**
  * Check if payment can be uploaded
  * @param {string} status - Booking status
+ * @param {string} [paymentStatus] - Optional payment status
  * @returns {boolean}
  */
-export const canUploadPayment = (status) => {
-  return ["pending", "payment_pending"].includes(status);
+export const canUploadPayment = (status, paymentStatus) => {
+  if (status !== "pending") return false;
+  if (paymentStatus && !["unpaid", "rejected"].includes(paymentStatus)) return false;
+  return true;
 };
