@@ -5,7 +5,13 @@ import { useAuthStore } from "@/store/auth-store";
 import { ErrorBoundary } from "@/components/error-boundary";
 import { RoutePreloader } from "@/components/route-preloader";
 import { ProtectedRoute } from "@/components/protected-route";
-import { PackagesPageSkeleton, DashboardPageSkeleton, DetailPageSkeleton, AuthPageSkeleton, GenericPageSkeleton,  } from "@/components/ui/skeleton";
+import {
+  PackagesPageSkeleton,
+  DashboardPageSkeleton,
+  DetailPageSkeleton,
+  AuthPageSkeleton,
+  GenericPageSkeleton,
+} from "@/components/ui/skeleton";
 
 // Eager load critical routes (landing page)
 import LandingPage from "@/pages/landing-page";
@@ -172,15 +178,15 @@ export default function App() {
             }
           />
           <Route
-  path="/manage-destinations"
-  element={
-    <ProtectedRoute allowedRoles={["agent"]}>
-      <Suspense fallback={<DashboardPageSkeleton />}>
-        <ManageDestinationsPage />
-      </Suspense>
-    </ProtectedRoute>
-  }
-/>
+            path="/manage-destinations"
+            element={
+              <ProtectedRoute allowedRoles={["agent"]}>
+                <Suspense fallback={<DashboardPageSkeleton />}>
+                  <ManageDestinationsPage />
+                </Suspense>
+              </ProtectedRoute>
+            }
+          />
 
           <Route
             path="/create-package"

@@ -23,11 +23,9 @@ export function useDestinations() {
  * Hook untuk mengambil destination berdasarkan ID
  */
 export function useDestination(id) {
-  const { data, isLoading, error, refetch } = useFetchById(
-    getDestinationById,
-    id,
-    { errorMessage: "Gagal mengambil data destination" }
-  );
+  const { data, isLoading, error, refetch } = useFetchById(getDestinationById, id, {
+    errorMessage: "Gagal mengambil data destination",
+  });
 
   return { destination: data, isLoading, error, refetch };
 }
@@ -37,7 +35,11 @@ export function useDestination(id) {
  * Note: Update dan delete bisa ditambahkan ketika service mendukung
  */
 export function useDestinationMutation() {
-  const { mutate: create, isLoading, error } = useMutation(createDestination, {
+  const {
+    mutate: create,
+    isLoading,
+    error,
+  } = useMutation(createDestination, {
     errorMessage: "Gagal membuat destination",
   });
 

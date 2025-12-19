@@ -6,11 +6,10 @@ import { getPackageReviews, getReviewsByTourist, createReview } from "@/services
  * Hook untuk mengambil reviews berdasarkan package
  */
 export function usePackageReviews(packageId) {
-  const { data, isLoading, error, refetch } = useFetchById(
-    getPackageReviews,
-    packageId,
-    { errorMessage: "Gagal mengambil data reviews", initialData: [] }
-  );
+  const { data, isLoading, error, refetch } = useFetchById(getPackageReviews, packageId, {
+    errorMessage: "Gagal mengambil data reviews",
+    initialData: [],
+  });
 
   return { reviews: data, isLoading, error, refetch };
 }
@@ -19,11 +18,10 @@ export function usePackageReviews(packageId) {
  * Hook untuk mengambil reviews berdasarkan tourist
  */
 export function useTouristReviews(touristId) {
-  const { data, isLoading, error, refetch } = useFetchById(
-    getReviewsByTourist,
-    touristId,
-    { errorMessage: "Gagal mengambil data reviews", initialData: [] }
-  );
+  const { data, isLoading, error, refetch } = useFetchById(getReviewsByTourist, touristId, {
+    errorMessage: "Gagal mengambil data reviews",
+    initialData: [],
+  });
 
   return { reviews: data, isLoading, error, refetch };
 }
@@ -32,7 +30,11 @@ export function useTouristReviews(touristId) {
  * Hook untuk operasi mutasi review (create)
  */
 export function useReviewMutation() {
-  const { mutate: create, isLoading, error } = useMutation(createReview, {
+  const {
+    mutate: create,
+    isLoading,
+    error,
+  } = useMutation(createReview, {
     errorMessage: "Gagal membuat review",
   });
 

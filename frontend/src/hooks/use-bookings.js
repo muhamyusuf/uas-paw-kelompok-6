@@ -28,11 +28,9 @@ export function useBookings() {
  * Hook untuk mengambil booking berdasarkan ID
  */
 export function useBooking(id) {
-  const { data, isLoading, error, refetch } = useFetchById(
-    getBookingById,
-    id,
-    { errorMessage: "Gagal mengambil data booking" }
-  );
+  const { data, isLoading, error, refetch } = useFetchById(getBookingById, id, {
+    errorMessage: "Gagal mengambil data booking",
+  });
 
   return { booking: data, isLoading, error, refetch };
 }
@@ -41,11 +39,10 @@ export function useBooking(id) {
  * Hook untuk mengambil bookings berdasarkan tourist
  */
 export function useTouristBookings(touristId) {
-  const { data, isLoading, error, refetch } = useFetchById(
-    getBookingsByTourist,
-    touristId,
-    { errorMessage: "Gagal mengambil data bookings", initialData: [] }
-  );
+  const { data, isLoading, error, refetch } = useFetchById(getBookingsByTourist, touristId, {
+    errorMessage: "Gagal mengambil data bookings",
+    initialData: [],
+  });
 
   return { bookings: data, isLoading, error, refetch };
 }
@@ -54,11 +51,10 @@ export function useTouristBookings(touristId) {
  * Hook untuk mengambil bookings berdasarkan package
  */
 export function usePackageBookings(packageId) {
-  const { data, isLoading, error, refetch } = useFetchById(
-    getBookingsByPackage,
-    packageId,
-    { errorMessage: "Gagal mengambil data bookings", initialData: [] }
-  );
+  const { data, isLoading, error, refetch } = useFetchById(getBookingsByPackage, packageId, {
+    errorMessage: "Gagal mengambil data bookings",
+    initialData: [],
+  });
 
   return { bookings: data, isLoading, error, refetch };
 }

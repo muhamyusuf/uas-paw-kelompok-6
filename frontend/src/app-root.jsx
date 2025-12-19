@@ -6,7 +6,13 @@ import { useAuthStore } from "@/store/auth-store";
 import { ErrorBoundary } from "@/components/error-boundary";
 import { RoutePreloader } from "@/components/route-preloader";
 import { ProtectedRoute } from "@/components/protected-route";
-import { PackagesPageSkeleton, DashboardPageSkeleton, DetailPageSkeleton, AuthPageSkeleton, GenericPageSkeleton,  } from "@/components/ui/skeleton";
+import {
+  PackagesPageSkeleton,
+  DashboardPageSkeleton,
+  DetailPageSkeleton,
+  AuthPageSkeleton,
+  GenericPageSkeleton,
+} from "@/components/ui/skeleton";
 
 // Eager load critical routes (landing page)
 import LandingPage from "@/pages/landing-page";
@@ -94,14 +100,13 @@ export default function App() {
             }
           />
           <Route
-  path="/destinations"
-  element={
-    <Suspense fallback={<GenericPageSkeleton />}>
-      <DestinationsPage />
-    </Suspense>
-  }
-/>
-
+            path="/destinations"
+            element={
+              <Suspense fallback={<GenericPageSkeleton />}>
+                <DestinationsPage />
+              </Suspense>
+            }
+          />
 
           {/* Auth */}
           <Route
@@ -155,15 +160,13 @@ export default function App() {
             }
           />
           <Route
-              path="/manage-destinations"
-              element={
-
-                  <Suspense fallback={<DashboardPageSkeleton />}>
-                    <ManageDestinationsPage />
-                  </Suspense>
-
-              }
-            />
+            path="/manage-destinations"
+            element={
+              <Suspense fallback={<DashboardPageSkeleton />}>
+                <ManageDestinationsPage />
+              </Suspense>
+            }
+          />
 
           <Route
             path="/create-package"
@@ -184,11 +187,9 @@ export default function App() {
           <Route
             path="/edit-destination/:id"
             element={
-             
-                <Suspense fallback={<GenericPageSkeleton />}>
-                  <EditDestinationPage />
-                </Suspense>
-           
+              <Suspense fallback={<GenericPageSkeleton />}>
+                <EditDestinationPage />
+              </Suspense>
             }
           />
 

@@ -11,7 +11,7 @@ A modern, full-featured travel package booking platform built with React, TypeSc
 3. **Destination Catalog** - Browse destinations with photos, descriptions, and packages
 4. **Booking System** - Tourist: Book packages (date, travelers), view all bookings
 5. **Booking Management** - Agent: View and manage bookings (confirm/cancel)
-6. **Reviews System** - Tourist: Write reviews after trip | View package ratings 
+6. **Reviews System** - Tourist: Write reviews after trip | View package ratings
 
 ### Additional Features
 
@@ -430,13 +430,13 @@ _Note: Screenshots will be added after final deployment_
 
 **Kelompok [Nomor] - Travel Package Booking System (Digit 9)**
 
-| No | Nama Lengkap              | NIM       | Role                 | Kontribusi Utama                                                                                           |
-| -- | ------------------------- | --------- | -------------------- | ---------------------------------------------------------------------------------------------------------- |
-| 1  | Martino Kelvin            | 123140165 | Team Leader & FE Dev | Project coordination,Pages implementation, frontend-backend integration, documentation, video presentation |
-| 2  | Muhammad Yusuf            | 122140193 | Frontend Developer   | Pages implementation, forms & validation, routing, error handling                                          |
-| 3  | Reyhan Capri Moraga       | 123140022 | Backend Developer    | API endpoints, booking, payment and qris                                                                   |
-| 4  | Daniel Calvin Simanjuntak | 123140004 | Backend Developer    | API endpoints, destination , and packages.                                                                 |
-| 5  | Faiq Ghozy Erlangga       | 123140139 | Backend Dev & DevOps | API endpoints, authentication, security, password hashing,review, and deployment                          |
+| No  | Nama Lengkap              | NIM       | Role                 | Kontribusi Utama                                                                                           |
+| --- | ------------------------- | --------- | -------------------- | ---------------------------------------------------------------------------------------------------------- |
+| 1   | Martino Kelvin            | 123140165 | Team Leader & FE Dev | Project coordination,Pages implementation, frontend-backend integration, documentation, video presentation |
+| 2   | Muhammad Yusuf            | 122140193 | Frontend Developer   | Pages implementation, forms & validation, routing, error handling                                          |
+| 3   | Reyhan Capri Moraga       | 123140022 | Backend Developer    | API endpoints, booking, payment and qris                                                                   |
+| 4   | Daniel Calvin Simanjuntak | 123140004 | Backend Developer    | API endpoints, destination , and packages.                                                                 |
+| 5   | Faiq Ghozy Erlangga       | 123140139 | Backend Dev & DevOps | API endpoints, authentication, security, password hashing,review, and deployment                           |
 
 ### Pembagian Tugas Detail
 
@@ -532,29 +532,28 @@ This project is for educational purposes as part of IF25-22014 course at Institu
 **Screenshot Application**
 
 - Landing Page Home
-![1766050043624](image/README/1766050043624.png)
-![1766050061530](image/README/1766050061530.png)
-![1766050074947](image/README/1766050074947.png)
+  ![1766050043624](image/README/1766050043624.png)
+  ![1766050061530](image/README/1766050061530.png)
+  ![1766050074947](image/README/1766050074947.png)
 
 - Destination Page
-![1766050102517](image/README/1766050102517.png)
+  ![1766050102517](image/README/1766050102517.png)
 - Packages page
-![1766050120295](image/README/1766050120295.png)
+  ![1766050120295](image/README/1766050120295.png)
 - Review Package
-![1766050258464](image/README/1766050258464.png)
+  ![1766050258464](image/README/1766050258464.png)
 - Booking
-![1766050270261](image/README/1766050270261.png)
+  ![1766050270261](image/README/1766050270261.png)
 - Payment Integration
-![1766050305254](image/README/1766050305254.png)
+  ![1766050305254](image/README/1766050305254.png)
 - Dashboard Agent - CRUD and Manage 'Packages and Destinations'
-![1766050192619](image/README/1766050192619.png)
+  ![1766050192619](image/README/1766050192619.png)
 - Dashboard Agent - payment verification - analytics
-![1766050423934](image/README/1766050423934.png)
+  ![1766050423934](image/README/1766050423934.png)
 
 - Video Presentation (done)
 
 - Link deployment (frontend dan backend)
-
 
 ---
 

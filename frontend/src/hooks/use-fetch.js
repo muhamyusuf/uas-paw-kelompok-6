@@ -13,60 +13,60 @@ import { useState, useEffect, useCallback, useRef } from "react";
  * @returns {Object} { data, isLoading, error, refetch }
  */
 export function useFetch(fetchFn, options = {}, deps = []) {
-    const {
-        enabled = true,
-        initialData = null,
-        onSuccess,
-        onError,
-        errorMessage = "Gagal mengambil data",
-    } = options;
+  const {
+    enabled = true,
+    initialData = null,
+    onSuccess,
+    onError,
+    errorMessage = "Gagal mengambil data",
+  } = options;
 
-    const [data, setData] = useState(initialData);
-    const [isLoading, setIsLoading] = useState(enabled);
-    const [error, setError] = useState(null);
+  const [data, setData] = useState(initialData);
+  const [isLoading, setIsLoading] = useState(enabled);
+  const [error, setError] = useState(null);
 
-    // Use ref to track if component is mounted
-    const isMountedRef = useRef(true);
+  // Use ref to track if component is mounted
+  const isMountedRef = useRef(true);
 
-    const fetchData = useCallback(async () => {
-        if (!enabled) {
-            setIsLoading(false);
-            return;
-        }
+  const fetchData = useCallback(async () => {
+    if (!enabled) {
+      setIsLoading(false);
+      return;
+    }
 
-        setIsLoading(true);
-        setError(null);
+    setIsLoading(true);
+    setError(null);
 
-        try {
-            const result = await fetchFn();
-            if (isMountedRef.current) {
-                setData(result);
-                onSuccess?.(result);
-            }
-        } catch (err) {
-            if (isMountedRef.current) {
-                const errorMsg = err.message || errorMessage;
-                setError(errorMsg);
-                onError?.(err);
-            }
-        } finally {
-            if (isMountedRef.current) {
-                setIsLoading(false);
-            }
-        }
-        // eslint-disable-next-line react-hooks/exhaustive-deps
-    }, [fetchFn, enabled, ...deps]);
+    try {
+      const result = await fetchFn();
+      if (isMountedRef.current) {
+        setData(result);
+        onSuccess?.(result);
+      }
+    } catch (err) {
+      if (isMountedRef.current) {
+        const errorMsg = err.message || errorMessage;
+        setError(errorMsg);
+        onError?.(err);
+      }
+    } finally {
+      if (isMountedRef.current) {
+        setIsLoading(false);
+      }
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [fetchFn, enabled, ...deps]);
 
-    useEffect(() => {
-        isMountedRef.current = true;
-        fetchData();
+  useEffect(() => {
+    isMountedRef.current = true;
+    fetchData();
 
-        return () => {
-            isMountedRef.current = false;
-        };
-    }, [fetchData]);
+    return () => {
+      isMountedRef.current = false;
+    };
+  }, [fetchData]);
 
-    return { data, isLoading, error, refetch: fetchData };
+  return { data, isLoading, error, refetch: fetchData };
 }
 
 /**
@@ -77,11 +77,11 @@ export function useFetch(fetchFn, options = {}, deps = []) {
  * @returns {Object} { data, isLoading, error, refetch }
  */
 export function useFetchById(fetchFn, id, options = {}) {
-    const enabled = options.enabled !== false && !!id;
+  const enabled = options.enabled !== false && !!id;
 
-    return useFetch(
-        useCallback(() => fetchFn(id), [fetchFn, id]),
-        { ...options, enabled },
-        [id]
-    );
+  return useFetch(
+    useCallback(() => fetchFn(id), [fetchFn, id]),
+    { ...options, enabled },
+    [id]
+  );
 }

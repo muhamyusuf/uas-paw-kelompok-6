@@ -301,8 +301,9 @@ export default function PackagesPage() {
                       <Button
                         variant="outline"
                         size="icon"
-                        className={`bg-background/90 hover:bg-background absolute top-4 right-4 h-8 w-8 rounded-full ${isInWishlist(pkg.id) ? "border-red-500 text-red-500" : ""
-                          }`}
+                        className={`bg-background/90 hover:bg-background absolute top-4 right-4 h-8 w-8 rounded-full ${
+                          isInWishlist(pkg.id) ? "border-red-500 text-red-500" : ""
+                        }`}
                         onClick={(e) => handleToggleWishlist(e, pkg.id)}
                       >
                         <Heart
@@ -340,7 +341,6 @@ export default function PackagesPage() {
                           <span className="text-muted-foreground">
                             {pkg.duration} {pkg.duration === 1 ? "Day" : "Days"}
                           </span>
-
                         </div>
 
                         <Button className="bg-primary text-primary-foreground hover:bg-primary/90 w-full">

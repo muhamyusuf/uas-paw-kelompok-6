@@ -413,18 +413,18 @@ export default function AllBookingsPage() {
 
                   {myBookings.filter((b) => status === "all" || b.status === status).length ===
                     0 && (
-                      <Card className="border-border p-12 text-center">
-                        <p className="text-muted-foreground mb-4">
-                          No {status !== "all" && status} bookings found
-                        </p>
-                        <Button
-                          onClick={() => navigate("/packages")}
-                          className="bg-primary text-primary-foreground hover:bg-primary/90"
-                        >
-                          Browse Packages
-                        </Button>
-                      </Card>
-                    )}
+                    <Card className="border-border p-12 text-center">
+                      <p className="text-muted-foreground mb-4">
+                        No {status !== "all" && status} bookings found
+                      </p>
+                      <Button
+                        onClick={() => navigate("/packages")}
+                        className="bg-primary text-primary-foreground hover:bg-primary/90"
+                      >
+                        Browse Packages
+                      </Button>
+                    </Card>
+                  )}
                 </TabsContent>
               ))}
             </Tabs>

@@ -28,16 +28,13 @@ export function usePackages(filters = {}) {
   return { packages: data, isLoading, error, refetch };
 }
 
-
 /**
  * Hook untuk mengambil package berdasarkan ID
  */
 export function usePackage(id) {
-  const { data, isLoading, error, refetch } = useFetchById(
-    getPackageById,
-    id,
-    { errorMessage: "Gagal mengambil data package" }
-  );
+  const { data, isLoading, error, refetch } = useFetchById(getPackageById, id, {
+    errorMessage: "Gagal mengambil data package",
+  });
 
   return { packageData: data, isLoading, error, refetch };
 }
@@ -46,11 +43,10 @@ export function usePackage(id) {
  * Hook untuk mengambil packages berdasarkan agent
  */
 export function useAgentPackages(agentId) {
-  const { data, isLoading, error, refetch } = useFetchById(
-    getPackagesByAgent,
-    agentId,
-    { errorMessage: "Gagal mengambil data packages", initialData: [] }
-  );
+  const { data, isLoading, error, refetch } = useFetchById(getPackagesByAgent, agentId, {
+    errorMessage: "Gagal mengambil data packages",
+    initialData: [],
+  });
 
   return { packages: data, isLoading, error, refetch };
 }
