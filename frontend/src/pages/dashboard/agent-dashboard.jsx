@@ -17,6 +17,7 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { PaymentVerification } from "@/components/payment-verification";
+import { QRISManagement } from "@/components/qris-management";
 import {
   Table,
   TableBody,
@@ -309,19 +310,32 @@ export default function AgentDashboard() {
             <CardHeader>
               <CardTitle className="text-foreground">Quick Actions</CardTitle>
             </CardHeader>
-            <CardContent className="flex flex-wrap gap-4">
+            <CardContent className="grid grid-cols-1 gap-3 sm:grid-cols-2">
               <Button
                 onClick={() => navigate("/create-package")}
-                className="bg-primary text-primary-foreground hover:bg-primary/90"
+                className="bg-primary text-primary-foreground hover:bg-primary/90 w-full"
               >
                 Create New Package
               </Button>
               <Button
                 onClick={() => navigate("/manage-packages")}
                 variant="outline"
-                className="border-border"
+                className="border-border w-full"
               >
                 Manage Packages
+              </Button>
+              <Button
+                onClick={() => navigate("/create-destination")}
+                className="bg-primary text-primary-foreground hover:bg-primary/90 w-full"
+              >
+                Create Destination
+              </Button>
+              <Button
+                onClick={() => navigate("/manage-destinations")}
+                variant="outline"
+                className="border-border w-full"
+              >
+                Manage Destinations
               </Button>
             </CardContent>
           </Card>
@@ -509,6 +523,9 @@ export default function AgentDashboard() {
 
         {/* Payment Verification */}
         <PaymentVerification />
+
+        {/* QRIS Management - TAMBAHKAN INI */}
+        <QRISManagement />
 
         {/* Bookings Management */}
         <Card className="border-border">

@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useEffect, useState, useCallback } from "react";
 import { useNavigate, useSearchParams } from "react-router-dom";
 import {
   CheckCircle,
@@ -21,6 +21,7 @@ import * as bookingService from "@/services/booking.service";
 import * as packageService from "@/services/package.service";
 import * as destinationService from "@/services/destination.service";
 import * as paymentService from "@/services/payment.service";
+import * as qrisService from "@/services/qris.service";
 import { format } from "date-fns";
 import { useSEO } from "@/hooks/use-seo";
 import { toast } from "sonner";
@@ -31,6 +32,9 @@ export default function BookingSuccessPage() {
   const { uploadPaymentProof } = useBookingStore();
   const [countdown, setCountdown] = useState(10);
   const [isLoading, setIsLoading] = useState(true);
+  const [isGeneratingQr, setIsGeneratingQr] = useState(false);
+  const [qrisData, setQrisData] = useState({ url: null, amount: null });
+  const [qrisError, setQrisError] = useState(null);
 
   // Local state for fetched data
   const [booking, setBooking] = useState(null);
@@ -107,6 +111,35 @@ export default function BookingSuccessPage() {
     }
   };
 
+  const handleGenerateQr = useCallback(async () => {
+    if (!booking?.totalPrice) {
+      toast.error("Amount not available for QR generation");
+      return;
+    }
+    setIsGeneratingQr(true);
+    setQrisError(null);
+    try {
+      const result = await qrisService.generatePaymentQRIS(booking.totalPrice);
+      const qrUrl = result?.fotoQrUrl || result?.qrCodeImage || result?.qr_string || null;
+      const amount = result?.totalAmount ?? result?.amount ?? booking.totalPrice;
+      setQrisData({ url: qrUrl, amount });
+      if (!qrUrl) {
+        setQrisError("QRIS belum tersedia. Pastikan admin sudah mengunggah QRIS statis.");
+      }
+    } catch (error) {
+      console.error("Failed to generate QRIS:", error);
+      const backendMsg = error?.response?.data?.error || error?.response?.data?.message;
+      if (error?.response?.status === 404) {
+        setQrisError("QRIS belum tersedia. Admin/agent perlu mengunggah QRIS statis terlebih dahulu.");
+      } else {
+        setQrisError(backendMsg || "Gagal membuat QRIS. Coba lagi nanti.");
+      }
+      toast.error("Gagal membuat QRIS. Pastikan QRIS sudah diunggah oleh agen.");
+    } finally {
+      setIsGeneratingQr(false);
+    }
+  }, [booking]);
+
   useEffect(() => {
     // Redirect after countdown
     const timer = setInterval(() => {
@@ -121,6 +154,12 @@ export default function BookingSuccessPage() {
 
     return () => clearInterval(timer);
   }, []);
+
+  useEffect(() => {
+    if (booking && booking.paymentStatus !== "verified" && !qrisData.url && !isGeneratingQr) {
+      handleGenerateQr();
+    }
+  }, [booking, qrisData.url, isGeneratingQr, handleGenerateQr]);
 
   // Loading state
   if (isLoading) {
@@ -256,6 +295,11 @@ export default function BookingSuccessPage() {
                 paymentProofUrl={booking.paymentProofUrl}
                 paymentRejectionReason={booking.paymentRejectionReason}
                 onUpload={handlePaymentUpload}
+                qrisImageUrl={qrisData.url}
+                qrisAmount={qrisData.amount}
+                isGeneratingQr={isGeneratingQr}
+                onGenerateQr={handleGenerateQr}
+                qrisError={qrisError}
               />
             </div>
 
